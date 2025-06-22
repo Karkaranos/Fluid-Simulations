@@ -2,6 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
+
 public class BasicFluid : MonoBehaviour
 {
     public float gravity = 2f;
@@ -13,6 +14,7 @@ public class BasicFluid : MonoBehaviour
     public int numParticles = 1;
     public float partSpacing = .1f;
     private int savedParticleNum = 1;
+    [SerializeField] private float smoothingRadius = .5f;
 
 
     // Start is called before the first frame update
@@ -64,6 +66,27 @@ public class BasicFluid : MonoBehaviour
 
     }
 
+    float SmoothingKernel(float radius, float dst)
+    {
+        float vol = Mathf.PI * Mathf.Pow(radius, 8) / 4;
+        float val = Mathf.Max(0, radius * radius - dst * dst);
+        return val * val * val / vol;
+    }
+
+    float CalculateDensity(Vector2 point)
+    {
+        float density = 0;
+        const float mass = 1;
+
+        foreach(Particle p in particles)
+        {
+            float dst = (p.pos - point).magnitude;
+            float influence = SmoothingKernel(smoothingRadius, dst);
+            density += mass * influence;
+        }
+
+        return density;
+    }
 
 
     #region Helpers
