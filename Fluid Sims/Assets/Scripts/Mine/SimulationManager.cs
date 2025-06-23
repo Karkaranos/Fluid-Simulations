@@ -16,7 +16,6 @@ public class SimulationManager : MonoBehaviour
     private Gradient _activeGradient;
     [Foldout("Particle Controls")] [SerializeField] private Gradient _easierVisualizationGradient;
     [Foldout("Particle Controls")] [SerializeField] private Gradient _realisticGradient;
-    private Material _material;
     [Tooltip("True for 2D simulations. False for 3D simulations")] [SerializeField] private bool _is2D;
 
     // 2D visuals
@@ -27,6 +26,8 @@ public class SimulationManager : MonoBehaviour
     // 3D visuals
     [HideIf("_is2D"), Foldout("3D Particle Controls")] [SerializeField] private Mesh _particleMesh3D;
     [HideIf("_is2D"), Foldout("3D Particle Controls")] [SerializeField] Shader _particleShader3D;
+    [HideIf("_is2D"), Foldout("3D Particle Controls")] [SerializeField] Color _color;
+    private Material _material;
     private Texture _gradientTexture3D;
 
 
@@ -50,6 +51,7 @@ public class SimulationManager : MonoBehaviour
     [Foldout("2D Simulation Bounds"), ShowIf("_is2D")] [SerializeField] private Vector2 _centerOfSpawn;
     [Foldout("2D Simulation Bounds"), ShowIf("_is2D")] [SerializeField] private Vector2 _spawnDimensions;
     [Foldout("2D Simulation Bounds"), ShowIf("_is2D")] [SerializeField] private Vector2 _simulationDimensions;
+    [Header("Bounding Boxes")]
     [Foldout("3D Simulation Bounds"), HideIf("_is2D")] [SerializeField] private Vector3 _centerOfSpawn3D;
     [Foldout("3D Simulation Bounds"), HideIf("_is2D")] [SerializeField] private Vector3 _spawnDimensions3D;
     [Foldout("3D Simulation Bounds"), HideIf("_is2D")] [SerializeField] private Vector3 _simulationDimensions3D;
@@ -128,7 +130,14 @@ public class SimulationManager : MonoBehaviour
         gpuSort = new();
         gpuSort.SetBuffers(spatialIndices, spatialOffsets);
 
-        Initialize();
+        if(_is2D)
+        {
+            Initialize2D();
+        }
+        else
+        {
+            Initialize3D();
+        }
     }
 
 
@@ -167,6 +176,18 @@ public class SimulationManager : MonoBehaviour
 
     #region 2D Simulations
 
+    private void Initialize2D()
+    {
+        _material = new Material(_particleShader2D);
+        _material.SetBuffer("Positions2D", positionBuffer);
+        _material.SetBuffer("Velocities", velocityBuffer);
+        _material.SetBuffer("DensityData", densityBuffer);
+
+
+        _argsBuffer = ComputeHelper.CreateArgsBuffer(_particleMesh2D, positionBuffer.count);
+        bounds = new Bounds(Vector3.zero, Vector3.one * 10000);
+
+    }
     private void Initialize2DBuffers()
     {
         positionBuffer = ComputeHelper.CreateStructuredBuffer<float2>(_particleNumber);
@@ -265,9 +286,36 @@ public class SimulationManager : MonoBehaviour
 
     }
 
+    void UpdateSettings2D()
+    {
+        if (needsUpdate)
+        {
+            needsUpdate = false;
+            TextureFromGradient(ref _gradientTexture2D, 64, _activeGradient);
+            _material.SetTexture("ColorMap", _gradientTexture2D);
+
+            _material.SetFloat("scale", _particleSize);
+            _material.SetFloat("velocityMax", _maxVelocity);
+        }
+    }
+
     #endregion
 
     #region 3D Simulations
+
+    private void Initialize3D()
+    {
+        _material = new Material(_particleShader3D);
+        _material.SetBuffer("Positions", positionBuffer);
+        _material.SetBuffer("Velocities", velocityBuffer);
+        _material.SetBuffer("DensityData", densityBuffer);
+
+        //_particleMesh3D = SebStuff.SphereGenerator.GenerateSphereMesh(3);
+        _argsBuffer = ComputeHelper.CreateArgsBuffer(_particleMesh3D, positionBuffer.count);
+        bounds = new Bounds(Vector3.zero, Vector3.one * 10000);
+
+
+    }
     private void Initialize3DBuffers()
     {
         positionBuffer = ComputeHelper.CreateStructuredBuffer<float3>(_particleNumber);
@@ -288,25 +336,75 @@ public class SimulationManager : MonoBehaviour
         ComputeHelper.SetBuffer(_compute3D, densityBuffer, "Densities", densityKernel, pressureKernel, viscosityKernel);
         ComputeHelper.SetBuffer(_compute3D, velocityBuffer, "Velocities", externalForcesKernel, pressureKernel, viscosityKernel, updatePositionKernel);
 
-        _compute3D.SetInt("numParticles", _particleNumber);
+        _compute3D.SetInt("numParticles", positionBuffer.count);
     }
 
     //stolen
+    //  TODO: Switch _particleNum to positionBuffer?
     private void RunSimulationIteration3D()
     {
-        ComputeHelper.Dispatch(_compute3D, _particleNumber, kernelIndex: externalForcesKernel);
-        ComputeHelper.Dispatch(_compute3D, _particleNumber, kernelIndex: spatialHashKernel);
+        ComputeHelper.Dispatch(_compute3D, positionBuffer.count, kernelIndex: externalForcesKernel);
+        ComputeHelper.Dispatch(_compute3D, positionBuffer.count, kernelIndex: spatialHashKernel);
         gpuSort.SortAndCalculateOffsets();
-        ComputeHelper.Dispatch(_compute3D, _particleNumber, kernelIndex: densityKernel);
-        ComputeHelper.Dispatch(_compute3D, _particleNumber, kernelIndex: pressureKernel);
-        ComputeHelper.Dispatch(_compute3D, _particleNumber, kernelIndex: viscosityKernel);
-        ComputeHelper.Dispatch(_compute3D, _particleNumber, kernelIndex: updatePositionKernel);
+        ComputeHelper.Dispatch(_compute3D, positionBuffer.count, kernelIndex: densityKernel);
+        ComputeHelper.Dispatch(_compute3D, positionBuffer.count, kernelIndex: pressureKernel);
+        ComputeHelper.Dispatch(_compute3D, positionBuffer.count, kernelIndex: viscosityKernel);
+        ComputeHelper.Dispatch(_compute3D, positionBuffer.count, kernelIndex: updatePositionKernel);
+
+    }
+
+    private void RunSimulationFrame3D(float time)
+    {
+        float timeStep = time / _iterationsPerFrame * Time.timeScale;
+
+        UpdateSettings3D(timeStep);
+
+
+        for (int i = 0; i < _iterationsPerFrame; i++)
+        {
+            RunSimulationIteration3D();
+        }
 
     }
 
     //stolen
     void UpdateSettings3D(float deltaTime)
     {
+        /* _compute3D.SetFloat("deltaTime", deltaTime);
+         _compute3D.SetFloat("gravity", _gravity);
+         _compute3D.SetFloat("collisionDamping", _collisionDampening);
+         _compute3D.SetFloat("smoothingRadius", _smoothingRadius);
+         _compute3D.SetFloat("targetDensity", _idealDensity);
+         _compute3D.SetFloat("pressureMultiplier", _pressure);
+         _compute3D.SetFloat("nearPressureMultiplier", _nearParticlePressure);
+         _compute3D.SetFloat("viscosityStrength", _viscosity);
+         _compute3D.SetVector("boundsSize", _simulationDimensions);
+         _compute3D.SetVector("obstacleSize", obstacleSize);
+         _compute3D.SetVector("obstacleCentre", obstacleCentre);
+
+         _compute3D.SetFloat("Poly6ScalingFactor", 4 / (Mathf.PI * Mathf.Pow(_smoothingRadius, 8)));
+         _compute3D.SetFloat("SpikyPow3ScalingFactor", 10 / (Mathf.PI * Mathf.Pow(_smoothingRadius, 5)));
+         _compute3D.SetFloat("SpikyPow2ScalingFactor", 6 / (Mathf.PI * Mathf.Pow(_smoothingRadius, 4)));
+         _compute3D.SetFloat("SpikyPow3DerivativeScalingFactor", 30 / (Mathf.Pow(_smoothingRadius, 5) * Mathf.PI));
+         _compute3D.SetFloat("SpikyPow2DerivativeScalingFactor", 12 / (Mathf.Pow(_smoothingRadius, 4) * Mathf.PI));
+
+
+         // Mouse interaction settings:
+         Vector3 mousePos = Camera.main.ScreenToWorldPoint(Input.mousePosition);
+         bool isPullInteraction = Input.GetMouseButton(0);
+         bool isPushInteraction = Input.GetMouseButton(1);
+         float currInteractStrength = 0;
+         if (isPushInteraction || isPullInteraction)
+         {
+             currInteractStrength = isPushInteraction ? -interactionStrength : interactionStrength;
+         }
+
+         _compute3D.SetVector("interactionInputPoint", mousePos);
+         _compute3D.SetFloat("interactionInputStrength", currInteractStrength);
+         _compute3D.SetFloat("interactionInputRadius", interactionRadius);*/
+        Vector3 simBoundsSize = transform.localScale;
+        Vector3 simBoundsCentre = transform.position;
+
         _compute3D.SetFloat("deltaTime", deltaTime);
         _compute3D.SetFloat("gravity", _gravity);
         _compute3D.SetFloat("collisionDamping", _collisionDampening);
@@ -315,30 +413,11 @@ public class SimulationManager : MonoBehaviour
         _compute3D.SetFloat("pressureMultiplier", _pressure);
         _compute3D.SetFloat("nearPressureMultiplier", _nearParticlePressure);
         _compute3D.SetFloat("viscosityStrength", _viscosity);
-        _compute3D.SetVector("boundsSize", _simulationDimensions);
-        _compute3D.SetVector("obstacleSize", obstacleSize);
-        _compute3D.SetVector("obstacleCentre", obstacleCentre);
+        _compute3D.SetVector("boundsSize", simBoundsSize);
+        _compute3D.SetVector("centre", simBoundsCentre);
 
-        _compute3D.SetFloat("Poly6ScalingFactor", 4 / (Mathf.PI * Mathf.Pow(_smoothingRadius, 8)));
-        _compute3D.SetFloat("SpikyPow3ScalingFactor", 10 / (Mathf.PI * Mathf.Pow(_smoothingRadius, 5)));
-        _compute3D.SetFloat("SpikyPow2ScalingFactor", 6 / (Mathf.PI * Mathf.Pow(_smoothingRadius, 4)));
-        _compute3D.SetFloat("SpikyPow3DerivativeScalingFactor", 30 / (Mathf.Pow(_smoothingRadius, 5) * Mathf.PI));
-        _compute3D.SetFloat("SpikyPow2DerivativeScalingFactor", 12 / (Mathf.Pow(_smoothingRadius, 4) * Mathf.PI));
-
-
-        // Mouse interaction settings:
-        Vector3 mousePos = Camera.main.ScreenToWorldPoint(Input.mousePosition);
-        bool isPullInteraction = Input.GetMouseButton(0);
-        bool isPushInteraction = Input.GetMouseButton(1);
-        float currInteractStrength = 0;
-        if (isPushInteraction || isPullInteraction)
-        {
-            currInteractStrength = isPushInteraction ? -interactionStrength : interactionStrength;
-        }
-
-        _compute3D.SetVector("interactionInputPoint", mousePos);
-        _compute3D.SetFloat("interactionInputStrength", currInteractStrength);
-        _compute3D.SetFloat("interactionInputRadius", interactionRadius);
+        _compute3D.SetMatrix("localToWorld", transform.localToWorldMatrix);
+        _compute3D.SetMatrix("worldToLocal", transform.worldToLocalMatrix);
     }
 
     //stolen
@@ -354,18 +433,37 @@ public class SimulationManager : MonoBehaviour
 
 
 
-    private void RunSimulationFrame3D(float time)
+   
+
+    void UpdateSettings3D()
     {
-        float timeStep = time / _iterationsPerFrame * Time.timeScale;
-
-        UpdateSettings3D(timeStep);
-
-
-        for (int i = 0; i < _iterationsPerFrame; i++)
+        /*if (needsUpdate)
         {
-            RunSimulationIteration3D();
-        }
+            needsUpdate = false;
+            //TextureFromGradient(ref _gradientTexture3D, 64, _activeGradient);
+            _material.SetTexture("ColorMap", _gradientTexture3D);
 
+            _material.SetFloat("scale", _particleSize);
+            _material.SetFloat("velocityMax", _maxVelocity);
+        }*/
+
+        if (needsUpdate)
+        {
+            needsUpdate = false;
+            ParticleDisplay2D.TextureFromGradient(ref _gradientTexture2D, 50, _activeGradient);
+            _material.SetTexture("ColorMap", _gradientTexture2D);
+        }
+        _material.SetFloat("scale", _particleSize);
+        _material.SetColor("color", _color);
+        _material.SetFloat("velocityMax", _maxVelocity);
+
+        
+        Vector3 s = transform.localScale;
+        transform.localScale = Vector3.one;
+        var localToWorld = transform.localToWorldMatrix;
+        transform.localScale = s;
+
+        _material.SetMatrix("localToWorld", localToWorld);
     }
 
     #endregion
@@ -410,6 +508,7 @@ public class SimulationManager : MonoBehaviour
 
     #endregion
 
+#if UNITY_EDITOR
     private void OnDrawGizmos()
     {
         if (_is2D)
@@ -445,6 +544,7 @@ public class SimulationManager : MonoBehaviour
             Gizmos.DrawWireCube(CenterOfLowO23D, Vector3.one * LowO2);*/
         }
     }
+#endif
 
     #region Spawning
 
@@ -507,12 +607,10 @@ public class SimulationManager : MonoBehaviour
 
         // Calculate the required number of particles per row and column
 
-
-        Debug.LogWarning("TODO: Generate particles per x and z properly");
-        int particlesSpawnPerRow = Mathf.CeilToInt(Mathf.Sqrt(s.x / s.y * _particleNumber +
+        int particlesSpawnPerRow = /*Mathf.CeilToInt(Mathf.Sqrt(s.x / s.y * _particleNumber +
             Mathf.Pow((s.x - s.y), 2) / (4 * Mathf.Pow(s.y, 2)) -
-            (s.x - s.y) / (2 * s.y)));
-        int particlesSpawnPerWidth = 1;
+            (s.x - s.y) / (2 * s.y)));*/ (int)Mathf.Pow(_particleNumber, (1f / 3f));
+        int particlesSpawnPerWidth = particlesSpawnPerRow;
 
         int particlesSpawnPerColumn = Mathf.CeilToInt(_particleNumber / ((float)particlesSpawnPerRow*(float)particlesSpawnPerWidth));
 
@@ -556,6 +654,10 @@ public class SimulationManager : MonoBehaviour
             {
                 for (int z = 0; z < particlesSpawnPerWidth; z++)
                 {
+                    if(i >= _particleNumber)
+                    {
+                        return;
+                    }
                     float tx = x / (particlesSpawnPerRow - 1f);
                     float ty = y / (particlesSpawnPerColumn - 1f);
                     float tz = z / (particlesSpawnPerWidth - 1f);
@@ -575,26 +677,19 @@ public class SimulationManager : MonoBehaviour
 
     #endregion
 
-    #region Visuals //copied
-    private void Initialize()
-    {
-        _material = new Material(_particleShader2D);
-        _material.SetBuffer("Positions2D", positionBuffer);
-        _material.SetBuffer("Velocities", velocityBuffer);
-        _material.SetBuffer("DensityData", densityBuffer);
-
-
-        _argsBuffer = ComputeHelper.CreateArgsBuffer(_particleMesh2D, positionBuffer.count);
-        bounds = new Bounds(Vector3.zero, Vector3.one * 10000);
-
-    }
+    #region Visuals
 
     void LateUpdate()
     {
-        if (_particleShader2D != null)
+        if (_is2D && _particleShader2D != null)
         {
-            UpdateSettings();
+            UpdateSettings2D();
             Graphics.DrawMeshInstancedIndirect(_particleMesh2D, 0, _material, bounds, _argsBuffer);
+        }
+        else if (!_is2D)
+        {
+            UpdateSettings3D();
+            Graphics.DrawMeshInstancedIndirect(_particleMesh3D, 0, _material, bounds, _argsBuffer);
         }
     }
 
@@ -603,18 +698,6 @@ public class SimulationManager : MonoBehaviour
         needsUpdate = true;
     }
 
-    void UpdateSettings()
-    {
-        if (needsUpdate)
-        {
-            needsUpdate = false;
-            TextureFromGradient(ref _gradientTexture2D, 64, _activeGradient);
-            _material.SetTexture("ColourMap", _gradientTexture2D);
-
-            _material.SetFloat("scale", _particleSize);
-            _material.SetFloat("velocityMax", _maxVelocity);
-        }
-    }
 
     public static void TextureFromGradient(ref Texture2D texture, int width, Gradient gradient, FilterMode filterMode = FilterMode.Bilinear)
     {
@@ -646,19 +729,6 @@ public class SimulationManager : MonoBehaviour
         texture.SetPixels(cols);
         texture.Apply();
     }
-
-    #endregion
-
-    #region Silly type stuff
-    private string Vec()
-    {
-        if(_is2D)
-        {
-            return "Vector2";
-        }
-        return "Vector3";
-    }
-
 
     #endregion
 
