@@ -616,12 +616,12 @@ MonoBehaviour:
     m_ColorSpace: -1
     m_NumColorKeys: 3
     m_NumAlphaKeys: 2
-  _is2D: 0
+  _is2D: 1
   _particleMesh2D: {fileID: 10210, guid: 0000000000000000e000000000000000, type: 0}
   _particleShader2D: {fileID: 4800000, guid: 441b7193936682446b30d2140d15792a, type: 3}
   _particleMesh3D: {fileID: 10207, guid: 0000000000000000e000000000000000, type: 0}
   _particleShader3D: {fileID: 4800000, guid: bebe529033c51cb4f99d667ea48fa0c7, type: 3}
-  _color: {r: 1, g: 1, b: 1, a: 0}
+  _color: {r: 0, g: 0, b: 0, a: 0}
   _iterationsPerFrame: 2
   _gravity: -6
   _initialVelocity2D: {x: 0, y: 0}

@@ -39,9 +39,6 @@ Shader "Instanced/Particle2D" {
 			v2f vert (appdata_full v, uint instanceID : SV_InstanceID)
 			{
 				float2 CenterOfHighO2 = float2(-9, -2);
-				/*float speed = length(Velocities[instanceID]);
-				float speedT = saturate(speed / velocityMax);
-				float colT = speedT;*/
 				float distFromHigh = length(CenterOfHighO2-(Positions2D[instanceID]));
 				//float distFromLow = length((Positions2D[instanceID]) -CenterOfLowO2);
 				float colT = /*(distFromHigh > distFromLow ? distFromHigh : distFromLow);*/ distFromHigh;

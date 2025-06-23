@@ -6,6 +6,7 @@ using System.Collections;
 using Unity.Mathematics;
 using UnityEngine;
 using NaughtyAttributes;
+using System;
 
 public class SimulationManager : MonoBehaviour
 {
@@ -105,6 +106,7 @@ public class SimulationManager : MonoBehaviour
     [Header("Functions")]
     private byte s;
 
+    #region Initialization 
     // Start is called before the first frame update
     void Start()
     {
@@ -119,12 +121,13 @@ public class SimulationManager : MonoBehaviour
         if (_is2D)
         {
             GenerateSpawnInformation2D();
-            Initialize2DBuffers();
+            InitializeBuffers(ref _compute2D);
+            //Initialize2DBuffers();
         }
         else
         {
             GenerateSpawnInformation3D();
-            Initialize3DBuffers();
+            InitializeBuffers(ref _compute3D);
         }
 
         gpuSort = new();
@@ -140,7 +143,76 @@ public class SimulationManager : MonoBehaviour
         }
     }
 
+    private void Initialize3D()
+    {
+        _material = new Material(_particleShader3D);
+        _material.SetBuffer("Positions", positionBuffer);
+        _material.SetBuffer("Velocities", velocityBuffer);
+        _material.SetBuffer("DensityData", densityBuffer);
 
+        //_particleMesh3D = SebStuff.SphereGenerator.GenerateSphereMesh(3);
+        _argsBuffer = ComputeHelper.CreateArgsBuffer(_particleMesh3D, positionBuffer.count);
+        bounds = new Bounds(Vector3.zero, Vector3.one * 10000);
+
+
+    }
+    
+
+    private void Initialize2D()
+    {
+        _material = new Material(_particleShader2D);
+        _material.SetBuffer("Positions2D", positionBuffer);
+        _material.SetBuffer("Velocities", velocityBuffer);
+        _material.SetBuffer("DensityData", densityBuffer);
+
+
+        _argsBuffer = ComputeHelper.CreateArgsBuffer(_particleMesh2D, positionBuffer.count);
+        bounds = new Bounds(Vector3.zero, Vector3.one * 10000);
+
+    }
+
+    private void InitializeBuffers(ref ComputeShader compShader)
+    {
+        if (_is2D)
+        {
+            positionBuffer = ComputeHelper.CreateStructuredBuffer<float2>(_particleNumber);
+            predictedPositionBuffer = ComputeHelper.CreateStructuredBuffer<float2>(_particleNumber);
+            velocityBuffer = ComputeHelper.CreateStructuredBuffer<float2>(_particleNumber);
+        }
+        else
+        {
+            positionBuffer = ComputeHelper.CreateStructuredBuffer<float3>(_particleNumber);
+            predictedPositionBuffer = ComputeHelper.CreateStructuredBuffer<float3>(_particleNumber);
+            velocityBuffer = ComputeHelper.CreateStructuredBuffer<float3>(_particleNumber);
+        }
+        densityBuffer = ComputeHelper.CreateStructuredBuffer<float2>(_particleNumber);
+        spatialIndices = ComputeHelper.CreateStructuredBuffer<uint3>(_particleNumber);
+        spatialOffsets = ComputeHelper.CreateStructuredBuffer<uint>(_particleNumber);
+
+        if (_is2D)
+        {
+            SetInitialBufferData2D(spawnInformation2D);
+        }
+        else
+        {
+            SetInitialBufferData3D(spawnInformation3D);
+        }
+
+        // Init compute
+        ComputeHelper.SetBuffer(compShader, positionBuffer, "Positions", externalForcesKernel, updatePositionKernel);
+        ComputeHelper.SetBuffer(compShader, predictedPositionBuffer, "PredictedPositions", externalForcesKernel, spatialHashKernel, densityKernel, pressureKernel, viscosityKernel);
+        ComputeHelper.SetBuffer(compShader, spatialIndices, "SpatialIndices", spatialHashKernel, densityKernel, pressureKernel, viscosityKernel);
+        ComputeHelper.SetBuffer(compShader, spatialOffsets, "SpatialOffsets", spatialHashKernel, densityKernel, pressureKernel, viscosityKernel);
+        ComputeHelper.SetBuffer(compShader, densityBuffer, "Densities", densityKernel, pressureKernel, viscosityKernel);
+        ComputeHelper.SetBuffer(compShader, velocityBuffer, "Velocities", externalForcesKernel, pressureKernel, viscosityKernel, updatePositionKernel);
+
+        compShader.SetInt("numParticles", (_is2D ? _particleNumber : positionBuffer.count)); 
+    }
+
+
+    #endregion
+
+    #region Frame Updates
     private void FixedUpdate()
     {
         if(fixedTime)
@@ -173,43 +245,24 @@ public class SimulationManager : MonoBehaviour
         }
     }
 
+    void LateUpdate()
+    {
+        if (_is2D && _particleShader2D != null)
+        {
+            UpdateSettings2D();
+            Graphics.DrawMeshInstancedIndirect(_particleMesh2D, 0, _material, bounds, _argsBuffer);
+        }
+        else if (!_is2D)
+        {
+            UpdateSettings3D();
+            Graphics.DrawMeshInstancedIndirect(_particleMesh3D, 0, _material, bounds, _argsBuffer);
+        }
+    }
+
+    #endregion
+
 
     #region 2D Simulations
-
-    private void Initialize2D()
-    {
-        _material = new Material(_particleShader2D);
-        _material.SetBuffer("Positions2D", positionBuffer);
-        _material.SetBuffer("Velocities", velocityBuffer);
-        _material.SetBuffer("DensityData", densityBuffer);
-
-
-        _argsBuffer = ComputeHelper.CreateArgsBuffer(_particleMesh2D, positionBuffer.count);
-        bounds = new Bounds(Vector3.zero, Vector3.one * 10000);
-
-    }
-    private void Initialize2DBuffers()
-    {
-        positionBuffer = ComputeHelper.CreateStructuredBuffer<float2>(_particleNumber);
-        predictedPositionBuffer = ComputeHelper.CreateStructuredBuffer<float2>(_particleNumber);
-        velocityBuffer = ComputeHelper.CreateStructuredBuffer<float2>(_particleNumber);
-        densityBuffer = ComputeHelper.CreateStructuredBuffer<float2>(_particleNumber);
-        spatialIndices = ComputeHelper.CreateStructuredBuffer<uint3>(_particleNumber);
-        spatialOffsets = ComputeHelper.CreateStructuredBuffer<uint>(_particleNumber);
-
-        // Set buffer data
-        SetInitialBufferData2D(spawnInformation2D);
-
-        // Init compute
-        ComputeHelper.SetBuffer(_compute2D, positionBuffer, "Positions", externalForcesKernel, updatePositionKernel);
-        ComputeHelper.SetBuffer(_compute2D, predictedPositionBuffer, "PredictedPositions", externalForcesKernel, spatialHashKernel, densityKernel, pressureKernel, viscosityKernel);
-        ComputeHelper.SetBuffer(_compute2D, spatialIndices, "SpatialIndices", spatialHashKernel, densityKernel, pressureKernel, viscosityKernel);
-        ComputeHelper.SetBuffer(_compute2D, spatialOffsets, "SpatialOffsets", spatialHashKernel, densityKernel, pressureKernel, viscosityKernel);
-        ComputeHelper.SetBuffer(_compute2D, densityBuffer, "Densities", densityKernel, pressureKernel, viscosityKernel);
-        ComputeHelper.SetBuffer(_compute2D, velocityBuffer, "Velocities", externalForcesKernel, pressureKernel, viscosityKernel, updatePositionKernel);
-
-        _compute2D.SetInt("numParticles", _particleNumber);
-    }
 
     //stolen
     private void RunSimulationIteration2D()
@@ -236,36 +289,19 @@ public class SimulationManager : MonoBehaviour
         _compute2D.SetFloat("nearPressureMultiplier", _nearParticlePressure);
         _compute2D.SetFloat("viscosityStrength", _viscosity);
         _compute2D.SetVector("boundsSize", _simulationDimensions);
-        _compute2D.SetVector("obstacleSize", obstacleSize);
-        _compute2D.SetVector("obstacleCentre", obstacleCentre);
 
         _compute2D.SetFloat("Poly6ScalingFactor", 4 / (Mathf.PI * Mathf.Pow(_smoothingRadius, 8)));
         _compute2D.SetFloat("SpikyPow3ScalingFactor", 10 / (Mathf.PI * Mathf.Pow(_smoothingRadius, 5)));
         _compute2D.SetFloat("SpikyPow2ScalingFactor", 6 / (Mathf.PI * Mathf.Pow(_smoothingRadius, 4)));
         _compute2D.SetFloat("SpikyPow3DerivativeScalingFactor", 30 / (Mathf.Pow(_smoothingRadius, 5) * Mathf.PI));
         _compute2D.SetFloat("SpikyPow2DerivativeScalingFactor", 12 / (Mathf.Pow(_smoothingRadius, 4) * Mathf.PI));
-
-        
-        // Mouse interaction settings:
-        Vector2 mousePos = Camera.main.ScreenToWorldPoint(Input.mousePosition);
-        bool isPullInteraction = Input.GetMouseButton(0);
-        bool isPushInteraction = Input.GetMouseButton(1);
-        float currInteractStrength = 0;
-        if (isPushInteraction || isPullInteraction)
-        {
-            currInteractStrength = isPushInteraction ? -interactionStrength : interactionStrength;
-        }
-
-        _compute2D.SetVector("interactionInputPoint", mousePos);
-        _compute2D.SetFloat("interactionInputStrength", currInteractStrength);
-        _compute2D.SetFloat("interactionInputRadius", interactionRadius);
     }
 
     //stolen
     void SetInitialBufferData2D(ParticleSpawnInformation2D spawnInformation)
     {
         float2[] allPoints = new float2[spawnInformation.SpawnPositions.Length];
-        System.Array.Copy(spawnInformation.SpawnPositions, allPoints, spawnInformation.SpawnPositions.Length);
+        Array.Copy(spawnInformation.SpawnPositions, allPoints, spawnInformation.SpawnPositions.Length);
 
         positionBuffer.SetData(allPoints);
         predictedPositionBuffer.SetData(allPoints);
@@ -292,7 +328,7 @@ public class SimulationManager : MonoBehaviour
         {
             needsUpdate = false;
             TextureFromGradient(ref _gradientTexture2D, 64, _activeGradient);
-            _material.SetTexture("ColorMap", _gradientTexture2D);
+            _material.SetTexture("ColourMap", _gradientTexture2D);
 
             _material.SetFloat("scale", _particleSize);
             _material.SetFloat("velocityMax", _maxVelocity);
@@ -303,44 +339,7 @@ public class SimulationManager : MonoBehaviour
 
     #region 3D Simulations
 
-    private void Initialize3D()
-    {
-        _material = new Material(_particleShader3D);
-        _material.SetBuffer("Positions", positionBuffer);
-        _material.SetBuffer("Velocities", velocityBuffer);
-        _material.SetBuffer("DensityData", densityBuffer);
-
-        //_particleMesh3D = SebStuff.SphereGenerator.GenerateSphereMesh(3);
-        _argsBuffer = ComputeHelper.CreateArgsBuffer(_particleMesh3D, positionBuffer.count);
-        bounds = new Bounds(Vector3.zero, Vector3.one * 10000);
-
-
-    }
-    private void Initialize3DBuffers()
-    {
-        positionBuffer = ComputeHelper.CreateStructuredBuffer<float3>(_particleNumber);
-        predictedPositionBuffer = ComputeHelper.CreateStructuredBuffer<float3>(_particleNumber);
-        velocityBuffer = ComputeHelper.CreateStructuredBuffer<float3>(_particleNumber);
-        densityBuffer = ComputeHelper.CreateStructuredBuffer<float2>(_particleNumber);
-        spatialIndices = ComputeHelper.CreateStructuredBuffer<uint3>(_particleNumber);
-        spatialOffsets = ComputeHelper.CreateStructuredBuffer<uint>(_particleNumber);
-
-        // Set buffer data
-        SetInitialBufferData3D(spawnInformation3D);
-
-        // Init compute
-        ComputeHelper.SetBuffer(_compute3D, positionBuffer, "Positions", externalForcesKernel, updatePositionKernel);
-        ComputeHelper.SetBuffer(_compute3D, predictedPositionBuffer, "PredictedPositions", externalForcesKernel, spatialHashKernel, densityKernel, pressureKernel, viscosityKernel);
-        ComputeHelper.SetBuffer(_compute3D, spatialIndices, "SpatialIndices", spatialHashKernel, densityKernel, pressureKernel, viscosityKernel);
-        ComputeHelper.SetBuffer(_compute3D, spatialOffsets, "SpatialOffsets", spatialHashKernel, densityKernel, pressureKernel, viscosityKernel);
-        ComputeHelper.SetBuffer(_compute3D, densityBuffer, "Densities", densityKernel, pressureKernel, viscosityKernel);
-        ComputeHelper.SetBuffer(_compute3D, velocityBuffer, "Velocities", externalForcesKernel, pressureKernel, viscosityKernel, updatePositionKernel);
-
-        _compute3D.SetInt("numParticles", positionBuffer.count);
-    }
-
     //stolen
-    //  TODO: Switch _particleNum to positionBuffer?
     private void RunSimulationIteration3D()
     {
         ComputeHelper.Dispatch(_compute3D, positionBuffer.count, kernelIndex: externalForcesKernel);
@@ -370,38 +369,6 @@ public class SimulationManager : MonoBehaviour
     //stolen
     void UpdateSettings3D(float deltaTime)
     {
-        /* _compute3D.SetFloat("deltaTime", deltaTime);
-         _compute3D.SetFloat("gravity", _gravity);
-         _compute3D.SetFloat("collisionDamping", _collisionDampening);
-         _compute3D.SetFloat("smoothingRadius", _smoothingRadius);
-         _compute3D.SetFloat("targetDensity", _idealDensity);
-         _compute3D.SetFloat("pressureMultiplier", _pressure);
-         _compute3D.SetFloat("nearPressureMultiplier", _nearParticlePressure);
-         _compute3D.SetFloat("viscosityStrength", _viscosity);
-         _compute3D.SetVector("boundsSize", _simulationDimensions);
-         _compute3D.SetVector("obstacleSize", obstacleSize);
-         _compute3D.SetVector("obstacleCentre", obstacleCentre);
-
-         _compute3D.SetFloat("Poly6ScalingFactor", 4 / (Mathf.PI * Mathf.Pow(_smoothingRadius, 8)));
-         _compute3D.SetFloat("SpikyPow3ScalingFactor", 10 / (Mathf.PI * Mathf.Pow(_smoothingRadius, 5)));
-         _compute3D.SetFloat("SpikyPow2ScalingFactor", 6 / (Mathf.PI * Mathf.Pow(_smoothingRadius, 4)));
-         _compute3D.SetFloat("SpikyPow3DerivativeScalingFactor", 30 / (Mathf.Pow(_smoothingRadius, 5) * Mathf.PI));
-         _compute3D.SetFloat("SpikyPow2DerivativeScalingFactor", 12 / (Mathf.Pow(_smoothingRadius, 4) * Mathf.PI));
-
-
-         // Mouse interaction settings:
-         Vector3 mousePos = Camera.main.ScreenToWorldPoint(Input.mousePosition);
-         bool isPullInteraction = Input.GetMouseButton(0);
-         bool isPushInteraction = Input.GetMouseButton(1);
-         float currInteractStrength = 0;
-         if (isPushInteraction || isPullInteraction)
-         {
-             currInteractStrength = isPushInteraction ? -interactionStrength : interactionStrength;
-         }
-
-         _compute3D.SetVector("interactionInputPoint", mousePos);
-         _compute3D.SetFloat("interactionInputStrength", currInteractStrength);
-         _compute3D.SetFloat("interactionInputRadius", interactionRadius);*/
         Vector3 simBoundsSize = transform.localScale;
         Vector3 simBoundsCentre = transform.position;
 
@@ -451,10 +418,10 @@ public class SimulationManager : MonoBehaviour
         {
             needsUpdate = false;
             ParticleDisplay2D.TextureFromGradient(ref _gradientTexture2D, 50, _activeGradient);
-            _material.SetTexture("ColorMap", _gradientTexture2D);
+            _material.SetTexture("ColourMap", _gradientTexture2D);
         }
         _material.SetFloat("scale", _particleSize);
-        _material.SetColor("color", _color);
+        _material.SetColor("colour", _color);
         _material.SetFloat("velocityMax", _maxVelocity);
 
         
@@ -679,26 +646,14 @@ public class SimulationManager : MonoBehaviour
 
     #region Visuals
 
-    void LateUpdate()
-    {
-        if (_is2D && _particleShader2D != null)
-        {
-            UpdateSettings2D();
-            Graphics.DrawMeshInstancedIndirect(_particleMesh2D, 0, _material, bounds, _argsBuffer);
-        }
-        else if (!_is2D)
-        {
-            UpdateSettings3D();
-            Graphics.DrawMeshInstancedIndirect(_particleMesh3D, 0, _material, bounds, _argsBuffer);
-        }
-    }
+
 
     void OnValidate()
     {
         needsUpdate = true;
     }
 
-
+    //stolen
     public static void TextureFromGradient(ref Texture2D texture, int width, Gradient gradient, FilterMode filterMode = FilterMode.Bilinear)
     {
         if (texture == null)
@@ -730,6 +685,8 @@ public class SimulationManager : MonoBehaviour
         texture.Apply();
     }
 
+
+
     #endregion
 
     void OnDestroy()
@@ -738,7 +695,56 @@ public class SimulationManager : MonoBehaviour
         ComputeHelper.Release(_argsBuffer);
     }
 
+    #region Obselete
+    [Obsolete("Use InitializeBuffers with 3D passed by reference")]
+    private void Initialize3DBuffers()
+    {
+        positionBuffer = ComputeHelper.CreateStructuredBuffer<float3>(_particleNumber);
+        predictedPositionBuffer = ComputeHelper.CreateStructuredBuffer<float3>(_particleNumber);
+        velocityBuffer = ComputeHelper.CreateStructuredBuffer<float3>(_particleNumber);
+        densityBuffer = ComputeHelper.CreateStructuredBuffer<float2>(_particleNumber);
+        spatialIndices = ComputeHelper.CreateStructuredBuffer<uint3>(_particleNumber);
+        spatialOffsets = ComputeHelper.CreateStructuredBuffer<uint>(_particleNumber);
 
+        // Set buffer data
+        SetInitialBufferData3D(spawnInformation3D);
+
+        // Init compute
+        ComputeHelper.SetBuffer(_compute3D, positionBuffer, "Positions", externalForcesKernel, updatePositionKernel);
+        ComputeHelper.SetBuffer(_compute3D, predictedPositionBuffer, "PredictedPositions", externalForcesKernel, spatialHashKernel, densityKernel, pressureKernel, viscosityKernel);
+        ComputeHelper.SetBuffer(_compute3D, spatialIndices, "SpatialIndices", spatialHashKernel, densityKernel, pressureKernel, viscosityKernel);
+        ComputeHelper.SetBuffer(_compute3D, spatialOffsets, "SpatialOffsets", spatialHashKernel, densityKernel, pressureKernel, viscosityKernel);
+        ComputeHelper.SetBuffer(_compute3D, densityBuffer, "Densities", densityKernel, pressureKernel, viscosityKernel);
+        ComputeHelper.SetBuffer(_compute3D, velocityBuffer, "Velocities", externalForcesKernel, pressureKernel, viscosityKernel, updatePositionKernel);
+
+        _compute3D.SetInt("numParticles", positionBuffer.count);
+    }
+
+    [Obsolete("Use InitializeBuffers with 2D passed by reference")]
+    private void Initialize2DBuffers()
+    {
+        positionBuffer = ComputeHelper.CreateStructuredBuffer<float2>(_particleNumber);
+        predictedPositionBuffer = ComputeHelper.CreateStructuredBuffer<float2>(_particleNumber);
+        velocityBuffer = ComputeHelper.CreateStructuredBuffer<float2>(_particleNumber);
+        densityBuffer = ComputeHelper.CreateStructuredBuffer<float2>(_particleNumber);
+        spatialIndices = ComputeHelper.CreateStructuredBuffer<uint3>(_particleNumber);
+        spatialOffsets = ComputeHelper.CreateStructuredBuffer<uint>(_particleNumber);
+
+        // Set buffer data
+        SetInitialBufferData2D(spawnInformation2D);
+
+        // Init compute
+        ComputeHelper.SetBuffer(_compute2D, positionBuffer, "Positions", externalForcesKernel, updatePositionKernel);
+        ComputeHelper.SetBuffer(_compute2D, predictedPositionBuffer, "PredictedPositions", externalForcesKernel, spatialHashKernel, densityKernel, pressureKernel, viscosityKernel);
+        ComputeHelper.SetBuffer(_compute2D, spatialIndices, "SpatialIndices", spatialHashKernel, densityKernel, pressureKernel, viscosityKernel);
+        ComputeHelper.SetBuffer(_compute2D, spatialOffsets, "SpatialOffsets", spatialHashKernel, densityKernel, pressureKernel, viscosityKernel);
+        ComputeHelper.SetBuffer(_compute2D, densityBuffer, "Densities", densityKernel, pressureKernel, viscosityKernel);
+        ComputeHelper.SetBuffer(_compute2D, velocityBuffer, "Velocities", externalForcesKernel, pressureKernel, viscosityKernel, updatePositionKernel);
+
+        _compute2D.SetInt("numParticles", _particleNumber);
+    }
+
+    #endregion
 }
 
 public struct ParticleSpawnInformation2D
