@@ -1,6 +1,37 @@
-/*
+/* Author :             Cade Naylor
+ * Last Modified :      June 23, 2025
+ * Description :        This file contains all logic for 2D and 3D fluid simulations. It
+ *                          - Generates Spawn positions
+ *                          - Generates Materials from Gradients
+ *                          - Updates the renderer at the specified number of times per frame
+ *                          - Controls and visualizes boundaries
  * 
- * HEAVY help from https://www.youtube.com/watch?v=rSKMYc1CQHE
+ * Resources Used :     https://www.youtube.com/watch?v=_8v4DRhHu2g&t=873s
+ *                      https://www.youtube.com/watch?v=rSKMYc1CQHE
+ *                      https://www.youtube.com/watch?v=zbBwKMRyavE&t=178s
+ *
+ * TODO:                Optimization
+ *                          - Refactor 2D and 3D functions- create 1 general function where there are seperate instances
+ *                          - Pass needed values in by ref or value, depending on importance
+ *                          - Use tertiary operators as needed
+ *                          - Mark old functions obselete and eventually delete
+ *                          - FUNCTION HEADERS!
+ *                          - Restructure code by code function, not dimensions, after refactor complete
+ *                          - Region headers
+ *                      Shader Updates
+ *                          - Create buffers for High/Low o2 zones instead of just having it hardcoded on shaders
+ *                          - Update references when initializing materials
+ *                      Fluid Properties
+ *                          - Blood is sort of non-newtonian. It is viscoelastic
+ *                          - Shear-thinning
+ *                      Heartbeat Simulation
+ *                          - Needs easier and more realistic controls
+ *                      3D Simulation
+ *                          - Currently broken after some refactoring
+ *                          - Bounds may be manually set somewhere inadvertenly
+ *                      Obstacles
+ *                          - Obstacle detection at runtime will allow for more customizability and greater use cases
+ *                          - Convert game object positions or colliders to vectors and pass them to the computeBuffer?
  * */
 using System.Collections;
 using Unity.Mathematics;
@@ -10,6 +41,7 @@ using System;
 
 public class SimulationManager : MonoBehaviour
 {
+    #region Variables
     [Foldout("Particle Controls")]
     [Header("Particle Display")]
     [SerializeField] private int _particleNumber;
@@ -49,17 +81,22 @@ public class SimulationManager : MonoBehaviour
 
 
     [Header("Bounding Boxes")]
-    [Foldout("2D Simulation Bounds"), ShowIf("_is2D")] [SerializeField] private Vector2 _centerOfSpawn;
-    [Foldout("2D Simulation Bounds"), ShowIf("_is2D")] [SerializeField] private Vector2 _spawnDimensions;
-    [Foldout("2D Simulation Bounds"), ShowIf("_is2D")] [SerializeField] private Vector2 _simulationDimensions;
+    [Foldout("2D Simulation Bounds"), ShowIf("_is2D")] [SerializeField] private Vector2 _centerOfSpawn2D;
+    [Foldout("2D Simulation Bounds"), ShowIf("_is2D")] [SerializeField] private Vector2 _spawnDimensions2D;
+    [Foldout("2D Simulation Bounds"), ShowIf("_is2D")] [SerializeField] private Vector2 _simulationDimensions2D;
+    [Foldout("2D Simulation Bounds"), ShowIf("_is2D")] [SerializeField] private Vector2 CenterOfHighO2_2D;
+    [Foldout("2D Simulation Bounds"), ShowIf("_is2D")] [SerializeField] private Vector2 HighO2_2D;
+    [Foldout("2D Simulation Bounds"), ShowIf("_is2D")] [SerializeField] private Vector2 CenterOfLowO2_2D;
+    [Foldout("2D Simulation Bounds"), ShowIf("_is2D")] [SerializeField] private Vector2 LowO2_2D;
     [Header("Bounding Boxes")]
     [Foldout("3D Simulation Bounds"), HideIf("_is2D")] [SerializeField] private Vector3 _centerOfSpawn3D;
     [Foldout("3D Simulation Bounds"), HideIf("_is2D")] [SerializeField] private Vector3 _spawnDimensions3D;
     [Foldout("3D Simulation Bounds"), HideIf("_is2D")] [SerializeField] private Vector3 _simulationDimensions3D;
-    private Vector2 CenterOfHighO2;
-     private Vector2 HighO2;
-    private Vector2 CenterOfLowO2;
-    private Vector2 LowO2;
+    [Foldout("2D Simulation Bounds"), HideIf("_is2D")] [SerializeField] private Vector2 CenterOfHighO2_3D;
+    [Foldout("2D Simulation Bounds"), HideIf("_is2D")] [SerializeField] private Vector2 HighO2_3D;
+    [Foldout("2D Simulation Bounds"), HideIf("_is2D")] [SerializeField] private Vector2 CenterOfLowO2_3D;
+    [Foldout("2D Simulation Bounds"), HideIf("_is2D")] [SerializeField] private Vector2 LowO2_3D;
+
     Bounds _boundaries;
 
     [Foldout("2D Simulation Bounds"), ShowIf("_is2D")] [SerializeField] private ComputeShader _compute2D;
@@ -77,6 +114,10 @@ public class SimulationManager : MonoBehaviour
     ComputeBuffer predictedPositionBuffer;
     ComputeBuffer spatialIndices;
     ComputeBuffer spatialOffsets;
+    public ComputeBuffer highO2 { get; private set; }
+    public ComputeBuffer highO2Distance { get; private set; }
+    public ComputeBuffer lowO2 { get; private set; }
+    public ComputeBuffer lowO2Distance { get; private set; }
     GPUSort gpuSort;
     ComputeBuffer _argsBuffer;
     Bounds bounds;
@@ -106,13 +147,12 @@ public class SimulationManager : MonoBehaviour
     [Header("Functions")]
     private byte s;
 
+    #endregion
+
     #region Initialization 
     // Start is called before the first frame update
     void Start()
     {
-
-
-        // Setting Fixed Update to run 60 times per second
         Time.fixedDeltaTime = 1 / 60f;
 
         _activeGradient = _easierVisualizationGradient;
@@ -122,7 +162,6 @@ public class SimulationManager : MonoBehaviour
         {
             GenerateSpawnInformation2D();
             InitializeBuffers(ref _compute2D);
-            //Initialize2DBuffers();
         }
         else
         {
@@ -135,40 +174,25 @@ public class SimulationManager : MonoBehaviour
 
         if(_is2D)
         {
-            Initialize2D();
+            Initialize(_particleShader2D, _particleMesh2D);
         }
         else
         {
-            Initialize3D();
+            Initialize(_particleShader3D, _particleMesh3D);
         }
     }
 
-    private void Initialize3D()
+
+    private void Initialize(Shader shader, Mesh mesh)
     {
-        _material = new Material(_particleShader3D);
-        _material.SetBuffer("Positions", positionBuffer);
+        _material = new Material(shader);
+        _material.SetBuffer("Positions" + (_is2D? "2D" : ""), positionBuffer);
         _material.SetBuffer("Velocities", velocityBuffer);
         _material.SetBuffer("DensityData", densityBuffer);
+        //TODO: Add high/low o2 positions to material
 
-        //_particleMesh3D = SebStuff.SphereGenerator.GenerateSphereMesh(3);
-        _argsBuffer = ComputeHelper.CreateArgsBuffer(_particleMesh3D, positionBuffer.count);
+        _argsBuffer = ComputeHelper.CreateArgsBuffer(mesh, positionBuffer.count);
         bounds = new Bounds(Vector3.zero, Vector3.one * 10000);
-
-
-    }
-    
-
-    private void Initialize2D()
-    {
-        _material = new Material(_particleShader2D);
-        _material.SetBuffer("Positions2D", positionBuffer);
-        _material.SetBuffer("Velocities", velocityBuffer);
-        _material.SetBuffer("DensityData", densityBuffer);
-
-
-        _argsBuffer = ComputeHelper.CreateArgsBuffer(_particleMesh2D, positionBuffer.count);
-        bounds = new Bounds(Vector3.zero, Vector3.one * 10000);
-
     }
 
     private void InitializeBuffers(ref ComputeShader compShader)
@@ -198,13 +222,14 @@ public class SimulationManager : MonoBehaviour
             SetInitialBufferData3D(spawnInformation3D);
         }
 
-        // Init compute
+        // Initialize Buffers
         ComputeHelper.SetBuffer(compShader, positionBuffer, "Positions", externalForcesKernel, updatePositionKernel);
         ComputeHelper.SetBuffer(compShader, predictedPositionBuffer, "PredictedPositions", externalForcesKernel, spatialHashKernel, densityKernel, pressureKernel, viscosityKernel);
         ComputeHelper.SetBuffer(compShader, spatialIndices, "SpatialIndices", spatialHashKernel, densityKernel, pressureKernel, viscosityKernel);
         ComputeHelper.SetBuffer(compShader, spatialOffsets, "SpatialOffsets", spatialHashKernel, densityKernel, pressureKernel, viscosityKernel);
         ComputeHelper.SetBuffer(compShader, densityBuffer, "Densities", densityKernel, pressureKernel, viscosityKernel);
         ComputeHelper.SetBuffer(compShader, velocityBuffer, "Velocities", externalForcesKernel, pressureKernel, viscosityKernel, updatePositionKernel);
+        // TODO: Initialize high/low o2 areas as buffers here
 
         compShader.SetInt("numParticles", (_is2D ? _particleNumber : positionBuffer.count)); 
     }
@@ -264,7 +289,7 @@ public class SimulationManager : MonoBehaviour
 
     #region 2D Simulations
 
-    //stolen
+
     private void RunSimulationIteration2D()
     {
         ComputeHelper.Dispatch(_compute2D, _particleNumber, kernelIndex: externalForcesKernel);
@@ -277,7 +302,7 @@ public class SimulationManager : MonoBehaviour
 
     }
 
-    //stolen
+
     void UpdateSettings2D(float deltaTime)
     {
         _compute2D.SetFloat("deltaTime", deltaTime);
@@ -288,7 +313,7 @@ public class SimulationManager : MonoBehaviour
         _compute2D.SetFloat("pressureMultiplier", _pressure);
         _compute2D.SetFloat("nearPressureMultiplier", _nearParticlePressure);
         _compute2D.SetFloat("viscosityStrength", _viscosity);
-        _compute2D.SetVector("boundsSize", _simulationDimensions);
+        _compute2D.SetVector("boundsSize", _simulationDimensions2D);
 
         _compute2D.SetFloat("Poly6ScalingFactor", 4 / (Mathf.PI * Mathf.Pow(_smoothingRadius, 8)));
         _compute2D.SetFloat("SpikyPow3ScalingFactor", 10 / (Mathf.PI * Mathf.Pow(_smoothingRadius, 5)));
@@ -297,7 +322,7 @@ public class SimulationManager : MonoBehaviour
         _compute2D.SetFloat("SpikyPow2DerivativeScalingFactor", 12 / (Mathf.Pow(_smoothingRadius, 4) * Mathf.PI));
     }
 
-    //stolen
+
     void SetInitialBufferData2D(ParticleSpawnInformation2D spawnInformation)
     {
         float2[] allPoints = new float2[spawnInformation.SpawnPositions.Length];
@@ -339,7 +364,6 @@ public class SimulationManager : MonoBehaviour
 
     #region 3D Simulations
 
-    //stolen
     private void RunSimulationIteration3D()
     {
         ComputeHelper.Dispatch(_compute3D, positionBuffer.count, kernelIndex: externalForcesKernel);
@@ -366,7 +390,7 @@ public class SimulationManager : MonoBehaviour
 
     }
 
-    //stolen
+
     void UpdateSettings3D(float deltaTime)
     {
         Vector3 simBoundsSize = transform.localScale;
@@ -387,7 +411,7 @@ public class SimulationManager : MonoBehaviour
         _compute3D.SetMatrix("worldToLocal", transform.worldToLocalMatrix);
     }
 
-    //stolen
+
     void SetInitialBufferData3D(ParticleSpawnInformation3D spawnInformation)
     {
         float3[] allPoints = new float3[spawnInformation3D.SpawnPositions.Length];
@@ -404,16 +428,6 @@ public class SimulationManager : MonoBehaviour
 
     void UpdateSettings3D()
     {
-        /*if (needsUpdate)
-        {
-            needsUpdate = false;
-            //TextureFromGradient(ref _gradientTexture3D, 64, _activeGradient);
-            _material.SetTexture("ColorMap", _gradientTexture3D);
-
-            _material.SetFloat("scale", _particleSize);
-            _material.SetFloat("velocityMax", _maxVelocity);
-        }*/
-
         if (needsUpdate)
         {
             needsUpdate = false;
@@ -482,17 +496,17 @@ public class SimulationManager : MonoBehaviour
         {
             // Display the spawn region
             Gizmos.color = Color.white;
-            Gizmos.DrawWireCube(_centerOfSpawn, Vector2.one * _spawnDimensions);
+            Gizmos.DrawWireCube(_centerOfSpawn2D, Vector2.one * _spawnDimensions2D);
 
             // Display the bounding region
             Gizmos.color = Color.yellow;
-            Gizmos.DrawWireCube(Vector3.zero, Vector2.one * _simulationDimensions);
+            Gizmos.DrawWireCube(Vector3.zero, Vector2.one * _simulationDimensions2D);
 
             Gizmos.color = Color.red;
-            Gizmos.DrawWireCube(CenterOfHighO2, Vector2.one * HighO2);
+            Gizmos.DrawWireCube(CenterOfHighO2_2D, Vector2.one * HighO2_2D);
 
             Gizmos.color = Color.blue;
-            Gizmos.DrawWireCube(CenterOfLowO2, Vector2.one * LowO2);
+            Gizmos.DrawWireCube(CenterOfLowO2_2D, Vector2.one * LowO2_2D);
         }
         else
         {
@@ -504,11 +518,11 @@ public class SimulationManager : MonoBehaviour
             Gizmos.color = Color.yellow;
             Gizmos.DrawWireCube(Vector3.zero, _simulationDimensions3D);
 
-            /*Gizmos.color = Color.red;
-            Gizmos.DrawWireCube(CenterOfHighO2, Vector3.one * HighO2);
+            Gizmos.color = Color.red;
+            Gizmos.DrawWireCube(CenterOfHighO2_3D, HighO2_3D);
 
             Gizmos.color = Color.blue;
-            Gizmos.DrawWireCube(CenterOfLowO23D, Vector3.one * LowO2);*/
+            Gizmos.DrawWireCube(CenterOfLowO2_3D, LowO2_3D);
         }
     }
 #endif
@@ -521,7 +535,7 @@ public class SimulationManager : MonoBehaviour
         Unity.Mathematics.Random randomFactor = new Unity.Mathematics.Random(1);
 
 
-        float2 s = _spawnDimensions;
+        float2 s = _spawnDimensions2D;
 
         // Calculate the required number of particles per row and column
         int particlesSpawnPerRow = Mathf.CeilToInt(Mathf.Sqrt(s.x / s.y * _particleNumber +
@@ -555,7 +569,7 @@ public class SimulationManager : MonoBehaviour
                     // The particle's jitter and offset
                     // The center of the spawnable area
                 spawnInformation2D.SpawnPositions[index] = new Vector2((xPos - .5f) * s.x, (yPos - .5f) * 
-                    s.y) + jitter + _centerOfSpawn;
+                    s.y) + jitter + _centerOfSpawn2D;
 
                 spawnInformation2D.SpawnVelocities[index] = _initialVelocity2D;
                 index++;
@@ -742,6 +756,34 @@ public class SimulationManager : MonoBehaviour
         ComputeHelper.SetBuffer(_compute2D, velocityBuffer, "Velocities", externalForcesKernel, pressureKernel, viscosityKernel, updatePositionKernel);
 
         _compute2D.SetInt("numParticles", _particleNumber);
+    }
+
+    [Obsolete("Use Initialize with 3D shaders and Meshes")]
+    private void Initialize3D()
+    {
+        _material = new Material(_particleShader3D);
+        _material.SetBuffer("Positions", positionBuffer);
+        _material.SetBuffer("Velocities", velocityBuffer);
+        _material.SetBuffer("DensityData", densityBuffer);
+
+        _argsBuffer = ComputeHelper.CreateArgsBuffer(_particleMesh3D, positionBuffer.count);
+        bounds = new Bounds(Vector3.zero, Vector3.one * 10000);
+
+
+    }
+
+    [Obsolete("Use Initialize with 2D shaders and Meshes")]
+    private void Initialize2D()
+    {
+        _material = new Material(_particleShader2D);
+        _material.SetBuffer("Positions2D", positionBuffer);
+        _material.SetBuffer("Velocities", velocityBuffer);
+        _material.SetBuffer("DensityData", densityBuffer);
+
+
+        _argsBuffer = ComputeHelper.CreateArgsBuffer(_particleMesh2D, positionBuffer.count);
+        bounds = new Bounds(Vector3.zero, Vector3.one * 10000);
+
     }
 
     #endregion
