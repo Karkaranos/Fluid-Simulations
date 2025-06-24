@@ -11,11 +11,6 @@
  *                      https://www.youtube.com/watch?v=zbBwKMRyavE&t=178s
  *
  * TODO:                Optimization
- *                          - Refactor 2D and 3D functions- create 1 general function where there are seperate instances
- *                          - Pass needed values in by ref or value, depending on importance
- *                          - Use tertiary operators as needed
- *                          - Mark old functions obselete and eventually delete
- *                          - FUNCTION HEADERS!
  *                          - Restructure code by code function, not dimensions, after refactor complete
  *                          - Region headers
  *                      Shader Updates
@@ -26,9 +21,6 @@
  *                          - Shear-thinning
  *                      Heartbeat Simulation
  *                          - Needs easier and more realistic controls
- *                      3D Simulation
- *                          - Currently broken after some refactoring
- *                          - Bounds may be manually set somewhere inadvertenly
  *                      Obstacles
  *                          - Obstacle detection at runtime will allow for more customizability and greater use cases
  *                          - Convert game object positions or colliders to vectors and pass them to the computeBuffer?
@@ -51,6 +43,7 @@ public class SimulationManager : MonoBehaviour
     [Foldout("Particle Controls")] [SerializeField] private Gradient _easierVisualizationGradient;
     [Foldout("Particle Controls")] [SerializeField] private Gradient _realisticGradient;
     [Tooltip("True for 2D simulations. False for 3D simulations")] [SerializeField] private bool _is2D;
+    private bool _savedIs2D;
 
     // 2D visuals
     [ShowIf("_is2D"), Foldout("2D Particle Controls")] [SerializeField] private Mesh _particleMesh2D;
@@ -125,8 +118,6 @@ public class SimulationManager : MonoBehaviour
     ComputeBuffer _argsBuffer;
     Bounds bounds;
 
-
-
     const int externalForcesKernel = 0;
     const int spatialHashKernel = 1;
     const int densityKernel = 2;
@@ -149,7 +140,7 @@ public class SimulationManager : MonoBehaviour
 
     int frameCount;
 
-    [Header("Functions")]
+    //[Header("Functions")]
     private byte s;
 
     #endregion
@@ -170,10 +161,21 @@ public class SimulationManager : MonoBehaviour
     // Start is called before the first frame update
     void Start()
     {
+        _savedIs2D = _is2D;
         Time.fixedDeltaTime = 1 / 60f;
 
         _activeGradient = _easierVisualizationGradient;
 
+        Init();
+
+        _uMap = GetComponent<PlayerInput>().currentActionMap;
+        _uMap.Enable();
+        _mousePos = _uMap.FindAction("MousePos");
+        _mouseDelta = _uMap.FindAction("MouseDelta");
+    }
+
+    private void Init()
+    {
         if (_is2D)
         {
             GenerateSpawnInformation2D();
@@ -196,11 +198,6 @@ public class SimulationManager : MonoBehaviour
         {
             Initialize(_particleShader3D, _particleMesh3D);
         }
-
-        _uMap = GetComponent<PlayerInput>().currentActionMap;
-        _uMap.Enable();
-        _mousePos = _uMap.FindAction("MousePos");
-        _mouseDelta = _uMap.FindAction("MouseDelta");
     }
 
     private void Initialize(Shader shader, Mesh mesh)
@@ -404,8 +401,8 @@ public class SimulationManager : MonoBehaviour
 
     #endregion
 
-    // Needs function headers, fix Resimulate
-    #region Inspector Buttons
+    // Needs function headers
+    #region Heartbeat
     [Button("Start Beat")]
     private void StartBasicBeatSimulation()
     {
@@ -415,7 +412,7 @@ public class SimulationManager : MonoBehaviour
         }
     }
 
-    [Button("End Beat")]
+    //[Button("End Beat")]
     private void EndBasicBeatSimulation()
     {
         StopCoroutine(_heartCouroutine);
@@ -424,12 +421,6 @@ public class SimulationManager : MonoBehaviour
 
     }
 
-    [Button("Switch Gradient")]
-    private void SwapColors()
-    {
-        _activeGradient = (_activeGradient == _easierVisualizationGradient ? _realisticGradient : _easierVisualizationGradient);
-        needsUpdate = true;
-    }
 
     private IEnumerator Beat()
     {
@@ -444,17 +435,42 @@ public class SimulationManager : MonoBehaviour
 
     }
 
-    // Needs work
-    //[Button("Resimulate")]
+    #endregion
+
+    // needs work as it is janky, needs function headers
+    #region Simulation Button Controls
+    [Button("Switch Gradient")]
+    private void SwapColors()
+    {
+        _activeGradient = (_activeGradient == _easierVisualizationGradient ? _realisticGradient : _easierVisualizationGradient);
+        needsUpdate = true;
+    }
+
+    // Needs work. This likes working after MANUALLY switching between 2/3d a couple times
+    [Button("Resimulate")]
     private void RestartSimulation()
     {
-        if (_is2D)
+        ClearLastData();
+        Init();
+    }
+
+    private void ClearLastData()
+    {
+        ComputeHelper.Release(positionBuffer, predictedPositionBuffer, velocityBuffer, densityBuffer, spatialIndices, spatialOffsets);
+        ComputeHelper.Release(_argsBuffer, highO2, lowO2, highO2Distance, lowO2Distance);
+        if (_savedIs2D != _is2D)
         {
-            Initialize(_particleShader2D, _particleMesh2D);
-        }
-        else
-        {
-            Initialize(_particleShader3D, _particleMesh3D);
+            if(_savedIs2D)
+            {
+                spawnInformation2D.SpawnPositions = null;
+                spawnInformation2D.SpawnVelocities = null;
+            }
+            else
+            {
+                spawnInformation3D.SpawnPositions = null;
+                spawnInformation3D.SpawnVelocities = null;
+            }
+            _savedIs2D = _is2D;
         }
     }
 
@@ -651,16 +667,17 @@ public class SimulationManager : MonoBehaviour
             Gizmos.DrawWireCube(Vector3.zero, Vector2.one * _simulationDimensions2D);
 
             Gizmos.color = Color.red;
-            Gizmos.DrawWireCube(CenterOfHighO2_2D, Vector2.one * HighO2_2D);
+            //Gizmos.DrawWireCube(CenterOfHighO2_2D, Vector2.one * HighO2_2D);
 
             Gizmos.color = Color.blue;
-            Gizmos.DrawWireCube(CenterOfLowO2_2D, Vector2.one * LowO2_2D);
+            //Gizmos.DrawWireCube(CenterOfLowO2_2D, Vector2.one * LowO2_2D);
         }
         else
         {
             // Display the spawn region
             Gizmos.color = Color.white;
             Gizmos.DrawWireCube(_centerOfSpawn3D, _spawnDimensions3D);
+
 
             // Display the bounding region
             Gizmos.color = Color.yellow;
@@ -678,7 +695,7 @@ public class SimulationManager : MonoBehaviour
     void OnDestroy()
     {
         ComputeHelper.Release(positionBuffer, predictedPositionBuffer, velocityBuffer, densityBuffer, spatialIndices, spatialOffsets);
-        ComputeHelper.Release(_argsBuffer);
+        ComputeHelper.Release(_argsBuffer, highO2, lowO2, highO2Distance, lowO2Distance);
     }
 
     #endregion

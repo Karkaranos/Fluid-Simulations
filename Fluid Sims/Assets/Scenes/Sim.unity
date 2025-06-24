@@ -277,7 +277,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 10303, guid: 0000000000000000f000000000000000, type: 0}
+  - {fileID: 2100000, guid: d772420287dfb9945b0938e2c37877cd, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -317,8 +317,8 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
+  m_LocalScale: {x: 0.01, y: 0.01, z: 0.01}
+  m_ConstrainProportionsScale: 1
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
@@ -585,7 +585,7 @@ GameObject:
   m_Component:
   - component: {fileID: 1648028034}
   - component: {fileID: 1648028033}
-  - component: {fileID: 1648028032}
+  - component: {fileID: 1648028035}
   m_Layer: 0
   m_Name: EventSystem
   m_TagString: Untagged
@@ -593,26 +593,6 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!114 &1648028032
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1648028031}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 4f231c4fb786f3946a6b90b886c48677, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  m_SendPointerHoverToParent: 1
-  m_HorizontalAxis: Horizontal
-  m_VerticalAxis: Vertical
-  m_SubmitButton: Submit
-  m_CancelButton: Cancel
-  m_InputActionsPerSecond: 10
-  m_RepeatDelay: 0.5
-  m_ForceModuleActive: 0
 --- !u!114 &1648028033
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -643,6 +623,36 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1648028035
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1648028031}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 01614664b831546d2ae94a42149d80ac, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  m_SendPointerHoverToParent: 1
+  m_MoveRepeatDelay: 0.5
+  m_MoveRepeatRate: 0.1
+  m_XRTrackingOrigin: {fileID: 0}
+  m_ActionsAsset: {fileID: -944628639613478452, guid: ca9f5fa95ffab41fb9a615ab714db018, type: 3}
+  m_PointAction: {fileID: -1654692200621890270, guid: ca9f5fa95ffab41fb9a615ab714db018, type: 3}
+  m_MoveAction: {fileID: -8784545083839296357, guid: ca9f5fa95ffab41fb9a615ab714db018, type: 3}
+  m_SubmitAction: {fileID: 392368643174621059, guid: ca9f5fa95ffab41fb9a615ab714db018, type: 3}
+  m_CancelAction: {fileID: 7727032971491509709, guid: ca9f5fa95ffab41fb9a615ab714db018, type: 3}
+  m_LeftClickAction: {fileID: 3001919216989983466, guid: ca9f5fa95ffab41fb9a615ab714db018, type: 3}
+  m_MiddleClickAction: {fileID: -2185481485913320682, guid: ca9f5fa95ffab41fb9a615ab714db018, type: 3}
+  m_RightClickAction: {fileID: -4090225696740746782, guid: ca9f5fa95ffab41fb9a615ab714db018, type: 3}
+  m_ScrollWheelAction: {fileID: 6240969308177333660, guid: ca9f5fa95ffab41fb9a615ab714db018, type: 3}
+  m_TrackedDevicePositionAction: {fileID: 6564999863303420839, guid: ca9f5fa95ffab41fb9a615ab714db018, type: 3}
+  m_TrackedDeviceOrientationAction: {fileID: 7970375526676320489, guid: ca9f5fa95ffab41fb9a615ab714db018, type: 3}
+  m_DeselectOnBackgroundClick: 1
+  m_PointerBehavior: 0
+  m_CursorLockBehavior: 0
 --- !u!1 &1934569170
 GameObject:
   m_ObjectHideFlags: 0
@@ -689,7 +699,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   _particleNumber: 2048
-  _particleSize: 0.6
+  _particleSize: 0.5
   _easierVisualizationGradient:
     serializedVersion: 2
     key0: {r: 0, g: 0.14748383, b: 1, a: 0.39215687}
@@ -697,7 +707,7 @@ MonoBehaviour:
     key2: {r: 0.33962262, g: 0.019977802, b: 0, a: 0}
     key3: {r: 0.61006284, g: 0.0018434903, b: 0, a: 0}
     key4: {r: 1, g: 0, b: 0, a: 0}
-    key5: {r: 0, g: 0, b: 0, a: 0}
+    key5: {r: 1, g: 0, b: 1, a: 0}
     key6: {r: 0, g: 0, b: 0, a: 0}
     key7: {r: 0, g: 0, b: 0, a: 0}
     ctime0: 5012
@@ -705,7 +715,7 @@ MonoBehaviour:
     ctime2: 34053
     ctime3: 49473
     ctime4: 64250
-    ctime5: 0
+    ctime5: 65535
     ctime6: 0
     ctime7: 0
     atime0: 0
@@ -725,7 +735,7 @@ MonoBehaviour:
     key0: {r: 0.33962262, g: 0.019977802, b: 0, a: 0.39215687}
     key1: {r: 0.61006284, g: 0.0018434903, b: 0, a: 0.39215687}
     key2: {r: 1, g: 0, b: 0, a: 0}
-    key3: {r: 0, g: 0, b: 0, a: 0}
+    key3: {r: 1, g: 0, b: 0.9207349, a: 0}
     key4: {r: 0, g: 0, b: 0, a: 0}
     key5: {r: 0, g: 0, b: 0, a: 0}
     key6: {r: 0, g: 0, b: 0, a: 0}
@@ -733,7 +743,7 @@ MonoBehaviour:
     ctime0: 7967
     ctime1: 29041
     ctime2: 64250
-    ctime3: 0
+    ctime3: 65535
     ctime4: 0
     ctime5: 0
     ctime6: 0
@@ -747,7 +757,7 @@ MonoBehaviour:
     atime6: 0
     atime7: 0
     m_Mode: 0
-    m_ColorSpace: -1
+    m_ColorSpace: 0
     m_NumColorKeys: 3
     m_NumAlphaKeys: 2
   _is2D: 0
@@ -771,20 +781,20 @@ MonoBehaviour:
   _centerOfSpawn2D: {x: 0, y: 0}
   _spawnDimensions2D: {x: 2, y: 2}
   _simulationDimensions2D: {x: 20, y: 10}
-  CenterOfHighO2_2D: {x: 4, y: 0}
-  HighO2_2D: {x: 2, y: 2}
-  CenterOfLowO2_2D: {x: -4, y: 0}
-  LowO2_2D: {x: 2, y: 2}
-  _centerOfSpawn3D: {x: 0, y: 0, z: 0}
-  _spawnDimensions3D: {x: 4, y: 4, z: 4}
-  _simulationDimensions3D: {x: 20, y: 9, z: 9}
-  CenterOfHighO2_3D: {x: 3.5, y: 0, z: 0}
-  HighO2_3D: {x: 2, y: 3.5, z: 2.54}
-  CenterOfLowO2_3D: {x: -3.5, y: 0, z: 0}
-  LowO2_3D: {x: 2, y: 3.5, z: 2}
+  CenterOfHighO2_2D: {x: 0, y: 0}
+  HighO2_2D: {x: 0, y: 0}
+  CenterOfLowO2_2D: {x: 0, y: 0}
+  LowO2_2D: {x: 0, y: 0}
+  _centerOfSpawn3D: {x: 0, y: 2, z: 0}
+  _spawnDimensions3D: {x: 2, y: 2, z: 2}
+  _simulationDimensions3D: {x: 13, y: 6, z: 4}
+  CenterOfHighO2_3D: {x: 4, y: 0, z: 0}
+  HighO2_3D: {x: 2, y: 2, z: 2}
+  CenterOfLowO2_3D: {x: -4, y: 0, z: 0}
+  LowO2_3D: {x: 2, y: 2, z: 2}
   _compute2D: {fileID: 7200000, guid: 1c77ce8de78fddb419ed2d15cae41af0, type: 3}
   _compute3D: {fileID: 7200000, guid: 9443696acfd0ebe4fb503b56d952256c, type: 3}
-  _timeBetweenBeats: 2
+  _timeBetweenBeats: 1
   _devianceFromResting: 7
   objVisualization: {fileID: 888730997}
 --- !u!114 &1934569173
