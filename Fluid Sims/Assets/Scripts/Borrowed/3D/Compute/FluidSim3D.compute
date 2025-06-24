@@ -58,7 +58,7 @@ void ResolveCollisions(uint particleIndex)
 	float3 velocityLocal = mul(worldToLocal, float4(Velocities[particleIndex], 0)).xyz;
 
 	// Calculate distance from box on each axis (negative values are inside box)
-	const float3 halfSize = 0.5;
+	const float3 halfSize = 0.5 * boundsSize;
 	const float3 edgeDst = halfSize - abs(posLocal);
 
 	// Resolve collisions
