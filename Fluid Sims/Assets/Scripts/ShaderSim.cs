@@ -1,5 +1,5 @@
 /* Author :             Cade Naylor
- * Last Modified :      June 23, 2025
+ * Last Modified :      June 28, 2025
  * Description :        This file contains all logic for 2D and 3D fluid simulations. It
  *                          - Generates Spawn positions
  *                          - Generates Materials from Gradients
@@ -495,6 +495,10 @@ public class SimulationManager : MonoBehaviour
         {
             objVisualization.transform.position = adjustedPos;
         }
+
+        float d = (adjustedPos - CenterOfHighO2_3D).magnitude;
+        float col = 1.0f-(d / 10f);
+        objVisualization.GetComponent<MeshRenderer>().material.color = _activeGradient.Evaluate(col);
 
         frameCount++;
     }
