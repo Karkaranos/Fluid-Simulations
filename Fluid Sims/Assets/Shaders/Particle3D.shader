@@ -19,7 +19,21 @@ Shader "Instanced/Particle3D" {
 			StructuredBuffer<float3> Positions;
 			StructuredBuffer<float3> Velocities;
 			StructuredBuffer<float3> DensityData;
+			// https://math.stackexchange.com/questions/1472049/check-if-a-point-is-inside-a-rectangular-shaped-area-3d
+			float3 CenterOfHighO2;
+			float3 Highv1;
+			float3 Highv2;
+			float3 Highv3;
+			float3 Highv4;
+			float3 i;
+			float3 j;
+			float3 k;
+			float3 finalv; // Calculated at runtime
+			float3 i2;
+			float3 j2;
+			float3 k2;
 			float scale;
+			float test;
 			float4 colA;
 			Texture2D<float4> ColourMap;
 			SamplerState linear_clamp_sampler;
@@ -39,10 +53,36 @@ Shader "Instanced/Particle3D" {
 
 			v2f vert (appdata_full v, uint instanceID : SV_InstanceID)
 			{
-				float3 CenterOfHighO2 = float3(-9, -2, 5);
-				float distFromHigh = length(CenterOfHighO2 - Positions[instanceID]);
+				finalv = Positions[instanceID];
+				float3 l = finalv - Highv1;
+
+				float distFromHigh = length(Positions[instanceID] - CenterOfHighO2);
 				float colT = distFromHigh;
-				colT = saturate(colT / 20);
+				colT = saturate(colT / 3);
+				
+				/*float colT = 0;
+				//checkIsInBox
+				if (0 < l * i < i2)
+				{
+					if (0 < l * j < j2)
+					{
+						if (0 < l * k < k2)
+						{
+							colT = 100;
+						}
+						else
+						{
+							colT = 75;
+						}
+					}
+					else
+					{
+						colT - 50;
+					}
+				}
+
+				colT = saturate(colT / 10);*/
+
 
 
 				float3 centreWorld = Positions[instanceID];

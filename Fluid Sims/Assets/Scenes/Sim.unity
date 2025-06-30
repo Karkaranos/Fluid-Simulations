@@ -763,13 +763,13 @@ MonoBehaviour:
   _is2D: 0
   _particleMesh2D: {fileID: 10210, guid: 0000000000000000e000000000000000, type: 0}
   _particleShader2D: {fileID: 4800000, guid: 441b7193936682446b30d2140d15792a, type: 3}
+  _initialVelocity2D: {x: 0, y: 0}
   _particleMesh3D: {fileID: 10207, guid: 0000000000000000e000000000000000, type: 0}
   _particleShader3D: {fileID: 4800000, guid: bebe529033c51cb4f99d667ea48fa0c7, type: 3}
   _color: {r: 0, g: 0, b: 0, a: 0}
+  _initialVelocity3D: {x: 0, y: 0, z: 0}
   _iterationsPerFrame: 2
   _gravity: -6
-  _initialVelocity2D: {x: 0, y: 0}
-  _initialVelocity3D: {x: 0, y: 0, z: 0}
   _maxVelocity: 2
   _particleJitter: 0.025
   _collisionDampening: 0.616
@@ -788,7 +788,7 @@ MonoBehaviour:
   _centerOfSpawn3D: {x: 0, y: 2, z: 0}
   _spawnDimensions3D: {x: 2, y: 2, z: 2}
   _simulationDimensions3D: {x: 13, y: 6, z: 4}
-  CenterOfHighO2_3D: {x: 4, y: 0, z: 0}
+  CenterOfHighO2_3D: {x: 4, y: -2, z: 0}
   HighO2_3D: {x: 2, y: 2, z: 2}
   CenterOfLowO2_3D: {x: -4, y: 0, z: 0}
   LowO2_3D: {x: 2, y: 2, z: 2}
