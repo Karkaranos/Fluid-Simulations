@@ -168,25 +168,26 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   OxygenZones:
-  - ZoneCenter: {x: 0, y: 1, z: 0}
+  - ZoneCenter: {x: 3.43, y: 1, z: 0}
+    isHighO2: 1
+    shape: 1
+    Dimensions: {x: 2, y: 2, z: 2}
+    Radius: 1
+    vertices: []
+    edges: []
+  - ZoneCenter: {x: -3, y: -2, z: 0}
     isHighO2: 0
     shape: 1
-    Dimensions: {x: 0, y: 0, z: 0}
+    Dimensions: {x: 2, y: 2, z: 2}
     Radius: 1
-  - ZoneCenter: {x: -3, y: 2, z: 0}
-    isHighO2: 1
-    shape: 0
-    Dimensions: {x: 1, y: 1, z: 1}
-    Radius: 0
-  - ZoneCenter: {x: 5, y: -3, z: 0}
-    isHighO2: 1
-    shape: 0
-    Dimensions: {x: 1, y: 1, z: 1}
-    Radius: 0
+    vertices: []
+    edges: []
   particles: []
   particlePrefab: {fileID: 9043092024972915633, guid: 84f9355f120f40446a39e0031cb45663, type: 3}
   WallPrefab: {fileID: 8523687231529176951, guid: 9f6ce31b06734a74f8f7611372d9307d, type: 3}
   _simulationDimensions3D: {x: 10, y: 5, z: 5}
+  InHighO2: {r: 1, g: 0.6742252, b: 0, a: 1}
+  InLoWO2: {r: 0.39771223, g: 0, b: 1, a: 1}
   _easierVisualizationGradient:
     serializedVersion: 2
     key0: {r: 0, g: 0.14748383, b: 1, a: 0.39215687}

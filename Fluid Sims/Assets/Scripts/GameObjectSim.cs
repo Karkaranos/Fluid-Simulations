@@ -27,6 +27,8 @@ public class GameObjectSim : MonoBehaviour
     [SerializeField, Required] private GameObject WallPrefab;
 
     [SerializeField] private Vector3 _simulationDimensions3D;
+    [SerializeField] private Color InHighO2;
+    [SerializeField] private Color InLoWO2;
 
     private Gradient _activeGradient;
     [Foldout("Particle Controls")] [SerializeField] private Gradient _easierVisualizationGradient;
@@ -46,6 +48,7 @@ public class GameObjectSim : MonoBehaviour
     #endregion
     #endregion
 
+    #region Functions
     private void Start()
     {
         bool typeFound = OxygenZones[0].isHighO2;
@@ -55,6 +58,14 @@ public class GameObjectSim : MonoBehaviour
             {
                 containsBothTypes = true;
                 break;
+            }
+        }
+
+        foreach(ZoneInformation zi in OxygenZones)
+        {
+            if(zi.shape == AcceptedZoneShapes.CUBE)
+            {
+                zi.GenerateSquareData();
             }
         }
         GenerateDistanceArray();
@@ -122,8 +133,34 @@ public class GameObjectSim : MonoBehaviour
         foreach(GameObject g in particles)
         {
             float[] vals = DistanceFromNearestNeighbor(g.transform);
-            col = 1.0f - (vals[0] / vals[1]);
-            g.GetComponent<MeshRenderer>().material.color = _activeGradient.Evaluate(col);
+            bool inShape = false;
+
+            if(OxygenZones[(int)vals[2]].shape == AcceptedZoneShapes.SPHERE)
+            {
+                if(TestSphereInclusion(g.transform.position, OxygenZones[(int)vals[2]].ZoneCenter, OxygenZones[(int)vals[2]].Radius))
+                {
+                    inShape = true;
+                }
+            }
+
+            if(OxygenZones[(int)vals[2]].shape == AcceptedZoneShapes.CUBE)
+            {
+                if(TestCubeInclusion(g.transform.position, OxygenZones[(int)vals[2]].vertices, 
+                    OxygenZones[(int)vals[2]].edges))
+                {
+                    inShape = true;
+                }
+            }
+
+            if(inShape)
+            {
+                g.GetComponent<MeshRenderer>().material.color = OxygenZones[(int)vals[2]].isHighO2 ? InHighO2 : InLoWO2;
+            }
+            else
+            {
+                col = 1.0f - (vals[0] / vals[1]);
+                g.GetComponent<MeshRenderer>().material.color = _activeGradient.Evaluate(col);
+            }
         }
 
     }
@@ -164,9 +201,10 @@ public class GameObjectSim : MonoBehaviour
 
     private float[] DistanceFromNearestNeighbor(Transform t)
     {
-        float[] results = new float[2];
+        float[] results = new float[3];
         int closestHigh = 0, closestLow = 0;
-        float highDist = int.MaxValue, lowDist = int.MaxValue, dist;
+        float highDist = int.MaxValue, lowDist = int.MaxValue, dist, lowestTotalDist = int.MaxValue;
+        int nearestZone = 0;
         for(int i=0; i<OxygenZones.Length; i++)
         {
             dist = (OxygenZones[i].ZoneCenter - t.position).magnitude;
@@ -180,10 +218,16 @@ public class GameObjectSim : MonoBehaviour
                 closestLow = i;
                 lowDist = dist;
             }
+            if(dist < lowestTotalDist)
+            {
+                lowestTotalDist = dist;
+                nearestZone = i;
+            }
         }
 
         results[0] = highDist;
         results[1] = distanceBetweenZones[closestHigh, closestLow];
+        results[2] = nearestZone;
 
         return results;
     }
@@ -207,6 +251,32 @@ public class GameObjectSim : MonoBehaviour
             }
         }
     }
+
+    private bool TestSphereInclusion(Vector3 position, Vector3 center, float radius)
+    {
+        return (Mathf.Pow(position.x - center.x, 2) + Mathf.Pow(position.y - center.y, 2) + Mathf.Pow(position.z - center.z, 2)) <= Mathf.Pow(radius, 2);
+    }
+
+
+    private bool TestCubeInclusion(Vector3 p0, Vector3[] vertices, Vector3[] edges)
+    {
+        Vector3 e4 = p0 - vertices[0];
+
+        if(0f < Vector3.Dot(e4, edges[0]) && Vector3.Dot(e4, edges[0])  < Vector3.Dot(edges[0], edges[0]))
+        {
+            if (0f < Vector3.Dot(e4, edges[1]) && Vector3.Dot(e4, edges[1]) < Vector3.Dot(edges[1], edges[1]))
+            {
+                if (0f < Vector3.Dot(e4, edges[2]) && Vector3.Dot(e4, edges[2]) < Vector3.Dot(edges[2], edges[2]))
+                {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+
 
     private void InstantiateWalls()
     {
@@ -241,10 +311,19 @@ public class GameObjectSim : MonoBehaviour
         spawnPos.z += _simulationDimensions3D.z;
         v = Instantiate(WallPrefab, spawnPos, Quaternion.Euler(angle));
         v.layer = 2;
-
-
-
     }
+
+    /// <summary>
+    /// Generates the dot product of two Vector3s
+    /// </summary>
+    /// <param name="vec1">The first vector, as a Vector3</param>
+    /// <param name="vec2">The second vector, as a Vector3</param>
+    /// <returns>The dot product, as a Vector3</returns>
+    private Vector3 DotProduct(Vector3 vec1, Vector3 vec2)
+    {
+        return new Vector3(vec1.x * vec2.x, vec1.y * vec2.y, vec1.z * vec2.z);
+    }
+
 
     /// <summary>
     /// Swaps the active gradient
@@ -256,8 +335,39 @@ public class GameObjectSim : MonoBehaviour
         _activeGradient = (_activeGradient == _easierVisualizationGradient ?
             _realisticGradient : _easierVisualizationGradient);
     }
+
+    /// <summary>
+    /// Comparing magnitude? length? 
+    /// </summary>
+    /// <param name="dir"></param>
+    /// <param name="vec1"></param>
+    /// <param name="vec2"></param>
+    /// <param name="vec3"></param>
+    /// <returns></returns>
+    public static bool CompareVector3(char dir, Vector3 vec1, Vector3 vec2)
+    {
+        if(dir == '<')
+        {
+            if(vec1.magnitude < vec2.magnitude)
+            {
+                return true;
+            }
+        }
+        else if (dir == '>')
+        {
+            if (vec1.magnitude > vec2.magnitude)
+            {
+                return true;
+            }
+        }
+
+        return false; ;
+    }
+
+    #endregion
 }
 
+#region Helper Classes, Structs, and Enums
 [System.Serializable]
 public class ZoneInformation
 {
@@ -266,9 +376,50 @@ public class ZoneInformation
     public AcceptedZoneShapes shape;
     [ShowIf("shape", AcceptedZoneShapes.CUBE), AllowNesting] public Vector3 Dimensions;
     [ShowIf("shape", AcceptedZoneShapes.SPHERE), AllowNesting] public float Radius;
+    [HideInInspector] public Vector3[] vertices;
+    [HideInInspector] public Vector3[] edges;
+
+    public void GenerateSquareData()
+    {
+        vertices = new Vector3[4];
+        edges = new Vector3[3];
+
+        Vector3 halfDimensions = Dimensions * .5f;
+
+        // Generate vertices
+        for (int i = 0; i < 4; i++)
+        {
+            Vector3 vPos = new Vector3(ZoneCenter.x - halfDimensions.x, ZoneCenter.y - halfDimensions.y, ZoneCenter.z + halfDimensions.z);
+            switch (i)
+            {
+                case 1:
+                    vPos.z = ZoneCenter.z - halfDimensions.z;
+                    break;
+                case 2:
+                    vPos.x = ZoneCenter.x + halfDimensions.x;
+                    break;
+                case 3:
+                    vPos.y = ZoneCenter.y + halfDimensions.y;
+                    break;
+                default:
+                    break;
+            }
+            vertices[i] = vPos;
+        }
+
+        // Generate edges
+        edges[0] = vertices[1] - vertices[0];
+        edges[1] = vertices[2] - vertices[0];
+        edges[2] = vertices[3] - vertices[0];
+
+    }
+
+
 }
 
 public enum AcceptedZoneShapes
 {
     CUBE, SPHERE
 }
+#endregion
+
