@@ -570,6 +570,14 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 76e98b41482204b459b104e35638cb82, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  CenterOfHighO2_2D: {x: 0, y: 0}
+  HighO2_2D: {x: 0, y: 0}
+  CenterOfLowO2_2D: {x: 0, y: 0}
+  LowO2_2D: {x: 0, y: 0}
+  CenterOfHighO2_3D: {x: 4, y: -2, z: 0}
+  HighO2_3D: {x: 2, y: 2, z: 2}
+  CenterOfLowO2_3D: {x: -4, y: 0, z: 0}
+  LowO2_3D: {x: 2, y: 2, z: 2}
   _particleNumber: 2048
   _particleSize: 0.5
   _easierVisualizationGradient:
@@ -653,17 +661,17 @@ MonoBehaviour:
   _centerOfSpawn2D: {x: 0, y: 0}
   _spawnDimensions2D: {x: 2, y: 2}
   _simulationDimensions2D: {x: 20, y: 10}
-  CenterOfHighO2_2D: {x: 0, y: 0}
-  HighO2_2D: {x: 0, y: 0}
-  CenterOfLowO2_2D: {x: 0, y: 0}
-  LowO2_2D: {x: 0, y: 0}
   _centerOfSpawn3D: {x: 0, y: 2, z: 0}
   _spawnDimensions3D: {x: 2, y: 2, z: 2}
   _simulationDimensions3D: {x: 13, y: 6, z: 4}
-  CenterOfHighO2_3D: {x: 4, y: -2, z: 0}
-  HighO2_3D: {x: 2, y: 2, z: 2}
-  CenterOfLowO2_3D: {x: -4, y: 0, z: 0}
-  LowO2_3D: {x: 2, y: 2, z: 2}
+  _zoneInformation3D:
+    ZoneCenter: {x: 0, y: 0, z: 0}
+    isHighO2: 0
+    vertices: []
+    edges: []
+    shape: 0
+    Dimensions: {x: 0, y: 0, z: 0}
+    Radius: 0
   _compute2D: {fileID: 7200000, guid: 1c77ce8de78fddb419ed2d15cae41af0, type: 3}
   _compute3D: {fileID: 7200000, guid: 9443696acfd0ebe4fb503b56d952256c, type: 3}
   _timeBetweenBeats: 1

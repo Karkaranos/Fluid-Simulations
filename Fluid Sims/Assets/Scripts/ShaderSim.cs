@@ -30,6 +30,19 @@ using System.Collections.Generic;
 
 public class SimulationManager : MonoBehaviour
 {
+
+    #region OBSOLETE VARIABLES
+    [Foldout("2D Simulation Bounds"), ShowIf("_is2D")] [SerializeField] private Vector2 CenterOfHighO2_2D;
+    [Foldout("2D Simulation Bounds"), ShowIf("_is2D")] [SerializeField] private Vector2 HighO2_2D;
+    [Foldout("2D Simulation Bounds"), ShowIf("_is2D")] [SerializeField] private Vector2 CenterOfLowO2_2D;
+    [Foldout("2D Simulation Bounds"), ShowIf("_is2D")] [SerializeField] private Vector2 LowO2_2D;
+    [Foldout("3D Simulation Bounds"), HideIf("_is2D")] [SerializeField] private Vector3 CenterOfHighO2_3D;
+    [Foldout("3D Simulation Bounds"), HideIf("_is2D")] [SerializeField] private Vector3 HighO2_3D;
+    [Foldout("3D Simulation Bounds"), HideIf("_is2D")] [SerializeField] private Vector3 CenterOfLowO2_3D;
+    [Foldout("3D Simulation Bounds"), HideIf("_is2D")] [SerializeField] private Vector3 LowO2_3D;
+    #endregion
+
+
     #region Variables
     // General visual Controls
     [Foldout("Particle Controls")]
@@ -54,7 +67,6 @@ public class SimulationManager : MonoBehaviour
     [HideIf("_is2D"), Foldout("3D Particle Controls")] [SerializeField] Color _color;
     [Foldout("3D Particle Controls"), HideIf("_is2D")] [SerializeField] private Vector3 _initialVelocity3D;
     private Material _material;
-    private Texture _gradientTexture3D;
 
     // General Particle Simulation controls
     [Header("Particle Simulation")]
@@ -75,10 +87,7 @@ public class SimulationManager : MonoBehaviour
     [Foldout("2D Simulation Bounds"), ShowIf("_is2D")] [SerializeField] private Vector2 _spawnDimensions2D;
     [Foldout("2D Simulation Bounds"), ShowIf("_is2D")] [SerializeField] private Vector2 _simulationDimensions2D;
     [Header("Oxygen Controls")]
-    [Foldout("2D Simulation Bounds"), ShowIf("_is2D")] [SerializeField] private Vector2 CenterOfHighO2_2D;
-    [Foldout("2D Simulation Bounds"), ShowIf("_is2D")] [SerializeField] private Vector2 HighO2_2D;
-    [Foldout("2D Simulation Bounds"), ShowIf("_is2D")] [SerializeField] private Vector2 CenterOfLowO2_2D;
-    [Foldout("2D Simulation Bounds"), ShowIf("_is2D")] [SerializeField] private Vector2 LowO2_2D;
+    [Foldout("2D Simulation Bounds"), ShowIf("_is2D")] [SerializeField] private ZoneInformation2D _zoneInformation2D;
 
     // 3D Bounding Boxes and O2 Zones
     [Header("Bounding Boxes")]
@@ -86,10 +95,7 @@ public class SimulationManager : MonoBehaviour
     [Foldout("3D Simulation Bounds"), HideIf("_is2D")] [SerializeField] private Vector3 _spawnDimensions3D;
     [Foldout("3D Simulation Bounds"), HideIf("_is2D")] [SerializeField] private Vector3 _simulationDimensions3D;
     [Header("Oxygen Controls")]
-    [Foldout("3D Simulation Bounds"), HideIf("_is2D")] [SerializeField] private Vector3 CenterOfHighO2_3D;
-    [Foldout("3D Simulation Bounds"), HideIf("_is2D")] [SerializeField] private Vector3 HighO2_3D;
-    [Foldout("3D Simulation Bounds"), HideIf("_is2D")] [SerializeField] private Vector3 CenterOfLowO2_3D;
-    [Foldout("3D Simulation Bounds"), HideIf("_is2D")] [SerializeField] private Vector3 LowO2_3D;
+    [Foldout("3D Simulation Bounds"), HideIf("_is2D")] [SerializeField] private ZoneInformation3D _zoneInformation3D;
 
     Bounds _boundaries;
 
