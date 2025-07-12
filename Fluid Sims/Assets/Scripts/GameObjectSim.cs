@@ -7,6 +7,7 @@
  *                          - Function headers
  *                          - Organize functions by purpose/general category
  *                          - See if brute force functions can be improved computationally using recursion
+ *                          - Look for places to optimize calls- Update has a few things that could be combined
  *                      Behavior Updates
  *                          - Maybe get spawned particles to have more physics or fluid behavior?
  *                          - Pick up particles and drag them around
@@ -65,8 +66,6 @@ public class GameObjectSim : MonoBehaviour
     [Foldout("Particle Controls")] [ShowIf("_colorMode", ColorMode.TIME)] [SerializeField] private float _timeToDecay;
     [Foldout("Particle Controls")] [ShowIf("_colorMode", ColorMode.TIME)] [SerializeField] private float _lowO2DecayMultiplier;
 
-
-
     public enum ColorMode
     {
         TIME, DISTANCE
@@ -90,37 +89,14 @@ public class GameObjectSim : MonoBehaviour
     #region Functions
     private void Start()
     {
-        bool typeFound = (_is2D? _zoneInformation2D[0].isHighO2 : _zoneInformation3D[0].isHighO2);
-        for(int i=1; i<(_is2D? _zoneInformation2D.Length : _zoneInformation3D.Length); i++)
-        {
-            if((_is2D ? _zoneInformation2D[i].isHighO2 : _zoneInformation3D[i].isHighO2) != typeFound)
-            {
-                containsBothTypes = true;
-                break;
-            }
-        }
         if(_is2D)
         {
-            foreach(ZoneInformation2D zi in _zoneInformation2D)
-            {
-                if (zi.shape == Accepted2DZoneShapes.SQUARE)
-                {
-                    zi.GenerateSquareData();
-                }
-            }
+            Initialize(_zoneInformation2D);
         }
         else
         {
-            foreach (ZoneInformation3D zi in _zoneInformation3D)
-            {
-                if (zi.shape == Accepted3DZoneShapes.CUBE)
-                {
-                    zi.GenerateSquareData();
-                }
-            }
+            Initialize(_zoneInformation3D);
         }
-
-        GenerateDistanceArray();
 
         _uMap = GetComponent<PlayerInput>().currentActionMap;
         _uMap.Enable();
@@ -138,6 +114,46 @@ public class GameObjectSim : MonoBehaviour
 
     }
 
+    private void Initialize<T>(ZoneInformation<T>[] zoneInformation)
+    {
+        InitializeZoneInformation(zoneInformation);
+
+        foreach(ZoneInformation<T> zi in zoneInformation)
+        {
+            if(!zi.isRound())
+            {
+                zi.GenerateNDimensionCubeData();
+            }
+        }
+
+        GenerateDistanceArray(zoneInformation);
+    }
+    private void InitializeZoneInformation<T>(ZoneInformation<T>[] zoneInfo)
+    {
+        containsBothTypes = CheckForBothTypes(zoneInfo);
+
+        foreach(ZoneInformation<T> zi in zoneInfo)
+        {
+            if(!zi.isRound())
+            {
+                zi.GenerateNDimensionCubeData();
+            }
+        }
+    }
+
+    private bool CheckForBothTypes<T>(ZoneInformation<T>[] zoneInfo)
+    {
+        bool typeFound = zoneInfo[0].isHighO2;
+        foreach(ZoneInformation<T> zi in zoneInfo)
+        {
+            if(zi.isHighO2 != typeFound)
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
     private void _space_started(InputAction.CallbackContext obj)
     {
         Vector3 halfBound = .5f * _simulationDimensions3D;
@@ -148,72 +164,53 @@ public class GameObjectSim : MonoBehaviour
 #if UNITY_EDITOR
     private void OnDrawGizmos()
     {
+
         if (_is2D)
         {
-            foreach (ZoneInformation2D zi in _zoneInformation2D)
-            {
-                if (zi.isHighO2)
-                {
-                    Gizmos.color = Color.red;
-                }
-                else
-                {
-                    Gizmos.color = Color.blue;
-                }
-
-                switch (zi.shape)
-                {
-                    case Accepted2DZoneShapes.SQUARE:
-                        Gizmos.DrawWireCube(zi.ZoneCenter, zi.Dimensions);
-                        break;
-                    case Accepted2DZoneShapes.CIRCLE:
-                        Gizmos.DrawWireSphere(zi.ZoneCenter, zi.Radius);
-                        break;
-                    default:
-                        break;
-                }
-            }
-
             Gizmos.color = Color.yellow;
             Gizmos.DrawWireCube(Vector3.zero, _simulationDimensions2D);
             Gizmos.color = Color.white;
             Gizmos.DrawWireCube(_centerOfSpawn2D, _spawnDimensions2D);
+
+            DrawOxygenZoneGizmos(_zoneInformation2D);
         }
         else
         {
-
-            foreach (ZoneInformation3D zi in _zoneInformation3D)
-            {
-                if (zi.isHighO2)
-                {
-                    Gizmos.color = Color.red;
-                }
-                else
-                {
-                    Gizmos.color = Color.blue;
-                }
-
-                switch (zi.shape)
-                {
-                    case Accepted3DZoneShapes.CUBE:
-                        Gizmos.DrawWireCube(zi.ZoneCenter, zi.Dimensions);
-                        break;
-                    case Accepted3DZoneShapes.SPHERE:
-                        Gizmos.DrawWireSphere(zi.ZoneCenter, zi.Radius);
-                        break;
-                    default:
-                        break;
-                }
-            }
-
             Gizmos.color = Color.yellow;
             Gizmos.DrawWireCube(Vector3.zero, _simulationDimensions3D);
             Gizmos.color = Color.white;
             Gizmos.DrawWireCube(_centerOfSpawn3D, _spawnDimensions3D);
+
+            DrawOxygenZoneGizmos(_zoneInformation3D);
+        }
+    }
+
+    private void DrawOxygenZoneGizmos<T>(ZoneInformation<T>[] zoneInformation)
+    {
+        foreach (ZoneInformation<T> zi in zoneInformation)
+        {
+            if (zi.isHighO2)
+            {
+                Gizmos.color = Color.red;
+            }
+            else
+            {
+                Gizmos.color = Color.blue;
+            }
+
+            if (zi.isRound())
+            {
+                Gizmos.DrawWireSphere(zi.ZoneCenter, zi.Radius);
+            }
+            else
+            {
+                Gizmos.DrawWireCube(zi.ZoneCenter, zi.Dimensions);
+            }
         }
     }
 #endif
 
+    // Extract all functions to a simple "Set Color" function
     private void Update()
     {
         Vector3 adjustedPos = MoveMouseIndicator();
@@ -223,46 +220,19 @@ public class GameObjectSim : MonoBehaviour
         {
             foreach (GameObject g in particles)
             {
-                float[] vals = DistanceFromNearestNeighbor(g.transform);
+                //SetColor(g);
+                float[] vals;
                 bool inShape = false;
 
-                if (_is2D)
+                if(_is2D)
                 {
-                    if (_zoneInformation2D[(int)vals[2]].shape == Accepted2DZoneShapes.CIRCLE)
-                    {
-                        if (TestCircleInclusion(g.transform.position, _zoneInformation2D[(int)vals[2]].ZoneCenter, _zoneInformation2D[(int)vals[2]].Radius))
-                        {
-                            inShape = true;
-                        }
-                    }
-
-                    if (_zoneInformation2D[(int)vals[2]].shape == Accepted2DZoneShapes.SQUARE)
-                    {
-                        if (TestSquareInclusion(g.transform.position, _zoneInformation2D[(int)vals[2]].vertices,
-                            _zoneInformation2D[(int)vals[2]].edges))
-                        {
-                            inShape = true;
-                        }
-                    }
+                    vals = DistanceFromNearestNeighbor(_zoneInformation2D, g.transform);
+                    inShape = TestInclusion(_zoneInformation2D[(int)vals[2]], g);
                 }
                 else
                 {
-                    if (_zoneInformation3D[(int)vals[2]].shape == Accepted3DZoneShapes.SPHERE)
-                    {
-                        if (TestSphereInclusion(g.transform.position, _zoneInformation3D[(int)vals[2]].ZoneCenter, _zoneInformation3D[(int)vals[2]].Radius))
-                        {
-                            inShape = true;
-                        }
-                    }
-
-                    if (_zoneInformation3D[(int)vals[2]].shape == Accepted3DZoneShapes.CUBE)
-                    {
-                        if (TestCubeInclusion(g.transform.position, _zoneInformation3D[(int)vals[2]].vertices,
-                            _zoneInformation3D[(int)vals[2]].edges))
-                        {
-                            inShape = true;
-                        }
-                    }
+                    vals = DistanceFromNearestNeighbor(_zoneInformation3D, g.transform);
+                    inShape = TestInclusion(_zoneInformation3D[(int)vals[2]], g);
                 }
 
                 if (inShape)
@@ -278,6 +248,11 @@ public class GameObjectSim : MonoBehaviour
                 }
             }
         }
+
+    }
+
+    private void SetColor(GameObject g)
+    {
 
     }
 
@@ -315,54 +290,29 @@ public class GameObjectSim : MonoBehaviour
         return adjustedPos;
     }
 
-    private float[] DistanceFromNearestNeighbor(Transform t)
+    private float[] DistanceFromNearestNeighbor<T>(ZoneInformation<T>[] zoneInfo, Transform t)
     {
         float[] results = new float[3];
         int closestHigh = 0, closestLow = 0;
         float highDist = int.MaxValue, lowDist = int.MaxValue, dist, lowestTotalDist = int.MaxValue;
         int nearestZone = 0;
-        if (_is2D)
+        for (int i = 0; i < zoneInfo.Length; i++)
         {
-            for (int i = 0; i < _zoneInformation2D.Length; i++)
+            dist = (zoneInfo[i].ZoneCenter - t.position).magnitude;
+            if (zoneInfo[i].isHighO2 && dist < highDist)
             {
-                dist = (_zoneInformation2D[i].ZoneCenter - t.position).magnitude;
-                if (_zoneInformation2D[i].isHighO2 && dist < highDist)
-                {
-                    closestHigh = i;
-                    highDist = dist;
-                }
-                else if (!_zoneInformation2D[i].isHighO2 && dist < lowDist)
-                {
-                    closestLow = i;
-                    lowDist = dist;
-                }
-                if (dist < lowestTotalDist)
-                {
-                    lowestTotalDist = dist;
-                    nearestZone = i;
-                }
+                closestHigh = i;
+                highDist = dist;
             }
-        }
-        else
-        {
-            for (int i = 0; i < _zoneInformation3D.Length; i++)
+            else if (!zoneInfo[i].isHighO2 && dist < lowDist)
             {
-                dist = (_zoneInformation3D[i].ZoneCenter - t.position).magnitude;
-                if (_zoneInformation3D[i].isHighO2 && dist < highDist)
-                {
-                    closestHigh = i;
-                    highDist = dist;
-                }
-                else if (!_zoneInformation3D[i].isHighO2 && dist < lowDist)
-                {
-                    closestLow = i;
-                    lowDist = dist;
-                }
-                if (dist < lowestTotalDist)
-                {
-                    lowestTotalDist = dist;
-                    nearestZone = i;
-                }
+                closestLow = i;
+                lowDist = dist;
+            }
+            if (dist < lowestTotalDist)
+            {
+                lowestTotalDist = dist;
+                nearestZone = i;
             }
         }
 
@@ -373,46 +323,33 @@ public class GameObjectSim : MonoBehaviour
         return results;
     }
 
-    private void GenerateDistanceArray()
+    private void GenerateDistanceArray<T>(ZoneInformation<T>[] zoneInformation)
     {
-        if (_is2D)
-        {
-            int n = _zoneInformation2D.Length;
-            distanceBetweenZones = new float[n, n];
+        int n = zoneInformation.Length;
+        distanceBetweenZones = new float[n, n];
 
-            for (int i = 0; i < n; i++)
-            {
-                for (int j = 0; j < n; j++)
-                {
-                    float val = int.MaxValue;
-                    if (i != j && _zoneInformation2D[i].isHighO2 != _zoneInformation2D[j].isHighO2)
-                    {
-                        val = (_zoneInformation2D[i].ZoneCenter - _zoneInformation2D[j].ZoneCenter).magnitude;
-                    }
-                    distanceBetweenZones[i, j] = val;
-                }
-            }
-        }
-        else
+        for (int i = 0; i < n; i++)
         {
-            int n = _zoneInformation3D.Length;
-            distanceBetweenZones = new float[n, n];
-
-            for (int i = 0; i < n; i++)
+            for (int j = 0; j < n; j++)
             {
-                for (int j = 0; j < n; j++)
+                float val = int.MaxValue;
+                if (i != j && zoneInformation[i].isHighO2 != zoneInformation[j].isHighO2)
                 {
-                    float val = int.MaxValue;
-                    if (i != j && _zoneInformation3D[i].isHighO2 != _zoneInformation3D[j].isHighO2)
-                    {
-                        val = (_zoneInformation3D[i].ZoneCenter - _zoneInformation3D[j].ZoneCenter).magnitude;
-                    }
-                    distanceBetweenZones[i, j] = val;
+                    val = (zoneInformation[i].ZoneCenter - zoneInformation[j].ZoneCenter).magnitude;
                 }
+                distanceBetweenZones[i, j] = val;
             }
         }
     }
 
+    private bool TestInclusion<T>(ZoneInformation<T> zi, GameObject g)
+    {
+        if(zi.isRound())
+        {
+            return TestSphereInclusion(g.transform.position, zi.ZoneCenter, zi.Radius);
+        }
+        return TestCubeInclusion(g.transform.position, zi.vertices, zi.edges);
+    }
     private bool TestSphereInclusion(Vector3 position, Vector3 center, float radius)
     {
         return (Mathf.Pow(position.x - center.x, 2) + Mathf.Pow(position.y - center.y, 2) + Mathf.Pow(position.z - center.z, 2)) <= Mathf.Pow(radius, 2);
@@ -426,7 +363,14 @@ public class GameObjectSim : MonoBehaviour
         {
             if (0f < Vector3.Dot(e4, edges[1]) && Vector3.Dot(e4, edges[1]) < Vector3.Dot(edges[1], edges[1]))
             {
-                if (0f < Vector3.Dot(e4, edges[2]) && Vector3.Dot(e4, edges[2]) < Vector3.Dot(edges[2], edges[2]))
+                if(edges.Length > 2)
+                {
+                    if (0f < Vector3.Dot(e4, edges[2]) && Vector3.Dot(e4, edges[2]) < Vector3.Dot(edges[2], edges[2]))
+                    {
+                        return true;
+                    }
+                }
+                else
                 {
                     return true;
                 }
@@ -435,27 +379,6 @@ public class GameObjectSim : MonoBehaviour
 
         return false;
     }
-
-
-    private bool TestSquareInclusion(Vector2 p0, Vector2[] vertices, Vector2[] edges)
-    {
-        Vector2 e2 = p0 - vertices[0];
-
-        if(0f < Vector2.Dot(e2, edges[0]) && Vector2.Dot(e2, edges[0]) < Vector2.Dot(edges[0], edges[0]))
-        {
-            if (0f < Vector2.Dot(e2, edges[1]) && Vector2.Dot(e2, edges[1]) < Vector2.Dot(edges[1], edges[1]))
-            {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    private bool TestCircleInclusion(Vector2 position, Vector2 center, float radius)
-    {
-        return Mathf.Pow(position.x - center.x, 2) + Mathf.Pow(position.y - center.y, 2) <= radius;
-    }
-
 
 
     private void InstantiateWalls()

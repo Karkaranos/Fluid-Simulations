@@ -229,7 +229,7 @@ MonoBehaviour:
     m_ColorSpace: -1
     m_NumColorKeys: 3
     m_NumAlphaKeys: 2
-  _is2D: 1
+  _is2D: 0
   particlePrefab3D: {fileID: 0}
   _initialVelocity2D: {x: 0, y: 0}
   particlePrefab2D: {fileID: 0}
@@ -244,14 +244,14 @@ MonoBehaviour:
     vertices: []
     edges: []
     shape: 0
-    Dimensions: {x: 2, y: 2}
+    Dimensions: {x: 2, y: 2, z: 0}
     Radius: 0
   - ZoneCenter: {x: -3, y: 0, z: 0}
     isHighO2: 0
     vertices: []
     edges: []
     shape: 1
-    Dimensions: {x: 0, y: 0}
+    Dimensions: {x: 0, y: 0, z: 0}
     Radius: 1
   _centerOfSpawn3D: {x: 0, y: 0, z: 0}
   _spawnDimensions3D: {x: 2, y: 2, z: 2}
@@ -261,9 +261,9 @@ MonoBehaviour:
     isHighO2: 1
     vertices: []
     edges: []
-    shape: 0
+    shape: 1
     Dimensions: {x: 2, y: 2, z: 2}
-    Radius: 0
+    Radius: 1
   - ZoneCenter: {x: -3, y: -2, z: 0}
     isHighO2: 0
     vertices: []
@@ -274,8 +274,8 @@ MonoBehaviour:
   WallPrefab: {fileID: 8523687231529176951, guid: 9f6ce31b06734a74f8f7611372d9307d, type: 3}
   _colorMode: 1
   _indicateInclusion: 1
-  _inHighO2: {r: 0.9559748, g: 0.5707293, b: 0, a: 0}
-  _inLowO2: {r: 0, g: 0.6573992, b: 1, a: 0}
+  _inHighO2: {r: 0.9559748, g: 0.5707293, b: 0, a: 1}
+  _inLowO2: {r: 0, g: 0.6573992, b: 1, a: 1}
   _timeToDecay: 0
   _lowO2DecayMultiplier: 0
   objVisualization: {fileID: 9043092024652431376}

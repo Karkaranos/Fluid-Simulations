@@ -1,31 +1,30 @@
 using NaughtyAttributes;
+using System.Collections.Generic;
 using UnityEngine;
 
-/*
-public class ZoneInformation<T>
-{
-    public bool isHighO2;
-    [HideInInspector] public Vector3[] vertices;
-    [HideInInspector] public Vector3[] edges;
-    public T shape;
-    [ShowIf(nameof("SquareBased")), AllowNesting] public Vector3 Dimensions;
-    [ShowIf("shape", Accepted3DZoneShapes.SPHERE), AllowNesting] public float Radius;
-    bool SquareBased => shape == Accepted2DZoneShapes,S
-}*/
 
-[System.Serializable]
-public class ZoneInformation3D/*<T> : ZoneInformation<T>*/
+public abstract class ZoneInformation<T>
 {
     public Vector3 ZoneCenter;
     public bool isHighO2;
     [HideInInspector] public Vector3[] vertices;
     [HideInInspector] public Vector3[] edges;
-    public Accepted3DZoneShapes shape;
-    [ShowIf("shape", Accepted3DZoneShapes.CUBE), AllowNesting] public Vector3 Dimensions;
-    [ShowIf("shape", Accepted3DZoneShapes.SPHERE), AllowNesting] public float Radius;
+    public T shape;
+    [HideIf("isRound"), AllowNesting] public Vector3 Dimensions;
+    [ShowIf("isRound"), AllowNesting] public float Radius;
 
+    public bool isRound()
+    {
+        return Equals(shape, Accepted2DZoneShapes.CIRCLE) || Equals(shape, Accepted3DZoneShapes.SPHERE);
+    }
 
-    public void GenerateSquareData()
+    public abstract void GenerateNDimensionCubeData();
+}
+
+[System.Serializable]
+public class ZoneInformation3D : ZoneInformation<Accepted3DZoneShapes>
+{
+    public override void GenerateNDimensionCubeData()
     {
         vertices = new Vector3[4];
         edges = new Vector3[3];
@@ -59,25 +58,15 @@ public class ZoneInformation3D/*<T> : ZoneInformation<T>*/
         edges[2] = vertices[3] - vertices[0];
 
     }
-
-
 }
 
 [System.Serializable]
-public class ZoneInformation2D /*: ZoneInformation*/
+public class ZoneInformation2D : ZoneInformation<Accepted2DZoneShapes>
 {
-    public Vector3 ZoneCenter;
-    public bool isHighO2;
-    [HideInInspector] public Vector2[] vertices;
-    [HideInInspector] public Vector2[] edges;
-    public Accepted2DZoneShapes shape;
-    [ShowIf("shape", Accepted2DZoneShapes.SQUARE), AllowNesting] public Vector2 Dimensions;
-    [ShowIf("shape", Accepted2DZoneShapes.CIRCLE), AllowNesting] public float Radius;
-
-    public void GenerateSquareData()
+    public override void GenerateNDimensionCubeData()
     {
-        vertices = new Vector2[3];
-        edges = new Vector2[2];
+        vertices = new Vector3[3];
+        edges = new Vector3[2];
 
         Vector2 halfDimensions = Dimensions * .5f;
 
