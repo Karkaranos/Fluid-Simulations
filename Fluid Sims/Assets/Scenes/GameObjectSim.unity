@@ -243,9 +243,9 @@ MonoBehaviour:
     isHighO2: 1
     vertices: []
     edges: []
-    shape: 0
+    shape: 1
     Dimensions: {x: 2, y: 2}
-    Radius: 0
+    Radius: 1
   - ZoneCenter: {x: -3, y: 0, z: 0}
     isHighO2: 0
     vertices: []

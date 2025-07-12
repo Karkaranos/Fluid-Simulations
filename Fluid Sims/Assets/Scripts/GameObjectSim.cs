@@ -45,14 +45,15 @@ public class GameObjectSim : MonoBehaviour
     [Foldout("2D Simulation Bounds"), ShowIf("_is2D")] [SerializeField] private Vector2 _spawnDimensions2D;
     [Foldout("2D Simulation Bounds"), ShowIf("_is2D")] [SerializeField] private Vector2 _simulationDimensions2D;
     [Header("Oxygen Controls")]
-    [Foldout("2D Simulation Bounds"), ShowIf("_is2D")] [SerializeField] private ZoneInformation2D[] _zoneInformation2D;
+    [Foldout("2D Simulation Bounds"), ShowIf("_is2D")] [SerializeField] private ZoneInformation<Vector2>[] _zoneInformation2D;
 
     [Header("Bounding Boxes")]
     [Foldout("3D Simulation Bounds"), HideIf("_is2D")] [SerializeField] private Vector3 _centerOfSpawn3D;
     [Foldout("3D Simulation Bounds"), HideIf("_is2D")] [SerializeField] private Vector3 _spawnDimensions3D;
     [Foldout("3D Simulation Bounds"), HideIf("_is2D")] [SerializeField] private Vector3 _simulationDimensions3D;
     [Header("Oxygen Controls")]
-    [Foldout("3D Simulation Bounds"), HideIf("_is2D")] [SerializeField] private ZoneInformation3D[] _zoneInformation3D;
+    [Foldout("3D Simulation Bounds"), HideIf("_is2D")] [SerializeField] private ZoneInformation<Vector3>[] _zoneInformation3D;
+
 
     private List<GameObject> particles = new List<GameObject>();
     private bool containsBothTypes = false;
@@ -99,26 +100,16 @@ public class GameObjectSim : MonoBehaviour
                 break;
             }
         }
+
         if(_is2D)
         {
-            foreach(ZoneInformation2D zi in _zoneInformation2D)
-            {
-                if (zi.shape == Accepted2DZoneShapes.SQUARE)
-                {
-                    zi.GenerateSquareData();
-                }
-            }
+            GenerateZoneBounds(_zoneInformation2D);
         }
         else
         {
-            foreach (ZoneInformation3D zi in _zoneInformation3D)
-            {
-                if (zi.shape == Accepted3DZoneShapes.CUBE)
-                {
-                    zi.GenerateSquareData();
-                }
-            }
+            GenerateZoneBounds(_zoneInformation3D);
         }
+
 
         GenerateDistanceArray();
 
@@ -145,71 +136,64 @@ public class GameObjectSim : MonoBehaviour
         particles.Add(Instantiate((_is2D ? particlePrefab2D : particlePrefab3D), randomPos, Quaternion.identity));
     }
 
+    private void GenerateZoneBounds<T>(ZoneInformation<T>[] zoneInformation)
+    {
+        foreach(ZoneInformation<T> zi in zoneInformation)
+        {
+            if(!zi.shape.Round())
+            {
+                zi.GenerateNDimCubeData();
+            }
+        }
+        
+    }
+
 #if UNITY_EDITOR
     private void OnDrawGizmos()
     {
-        if (_is2D)
+        if(_is2D)
         {
-            foreach (ZoneInformation2D zi in _zoneInformation2D)
-            {
-                if (zi.isHighO2)
-                {
-                    Gizmos.color = Color.red;
-                }
-                else
-                {
-                    Gizmos.color = Color.blue;
-                }
-
-                switch (zi.shape)
-                {
-                    case Accepted2DZoneShapes.SQUARE:
-                        Gizmos.DrawWireCube(zi.ZoneCenter, zi.Dimensions);
-                        break;
-                    case Accepted2DZoneShapes.CIRCLE:
-                        Gizmos.DrawWireSphere(zi.ZoneCenter, zi.Radius);
-                        break;
-                    default:
-                        break;
-                }
-            }
-
             Gizmos.color = Color.yellow;
             Gizmos.DrawWireCube(Vector3.zero, _simulationDimensions2D);
             Gizmos.color = Color.white;
             Gizmos.DrawWireCube(_centerOfSpawn2D, _spawnDimensions2D);
+
+            DrawOxygenGizmos(_zoneInformation2D);
+
         }
         else
         {
-
-            foreach (ZoneInformation3D zi in _zoneInformation3D)
-            {
-                if (zi.isHighO2)
-                {
-                    Gizmos.color = Color.red;
-                }
-                else
-                {
-                    Gizmos.color = Color.blue;
-                }
-
-                switch (zi.shape)
-                {
-                    case Accepted3DZoneShapes.CUBE:
-                        Gizmos.DrawWireCube(zi.ZoneCenter, zi.Dimensions);
-                        break;
-                    case Accepted3DZoneShapes.SPHERE:
-                        Gizmos.DrawWireSphere(zi.ZoneCenter, zi.Radius);
-                        break;
-                    default:
-                        break;
-                }
-            }
-
             Gizmos.color = Color.yellow;
             Gizmos.DrawWireCube(Vector3.zero, _simulationDimensions3D);
             Gizmos.color = Color.white;
             Gizmos.DrawWireCube(_centerOfSpawn3D, _spawnDimensions3D);
+
+            DrawOxygenGizmos(_zoneInformation3D);
+
+        }
+    }
+
+    private void DrawOxygenGizmos<T>(ZoneInformation<T>[] zoneInformation)
+    {
+        foreach (ZoneInformation<T> zi in zoneInformation)
+        {
+            if (zi.isHighO2)
+            {
+                Gizmos.color = Color.red;
+            }
+            else
+            {
+                Gizmos.color = Color.blue;
+            }
+
+            if(zi.shape.Round())
+            {
+                Gizmos.DrawWireSphere(zi.ZoneCenter, zi.Radius);
+            }
+            else
+            {
+                Gizmos.DrawWireCube(zi.ZoneCenter, zi.Dimensions);
+            }
         }
     }
 #endif
@@ -224,45 +208,14 @@ public class GameObjectSim : MonoBehaviour
             foreach (GameObject g in particles)
             {
                 float[] vals = DistanceFromNearestNeighbor(g.transform);
-                bool inShape = false;
-
+                bool inShape;
                 if (_is2D)
                 {
-                    if (_zoneInformation2D[(int)vals[2]].shape == Accepted2DZoneShapes.CIRCLE)
-                    {
-                        if (TestCircleInclusion(g.transform.position, _zoneInformation2D[(int)vals[2]].ZoneCenter, _zoneInformation2D[(int)vals[2]].Radius))
-                        {
-                            inShape = true;
-                        }
-                    }
-
-                    if (_zoneInformation2D[(int)vals[2]].shape == Accepted2DZoneShapes.SQUARE)
-                    {
-                        if (TestSquareInclusion(g.transform.position, _zoneInformation2D[(int)vals[2]].vertices,
-                            _zoneInformation2D[(int)vals[2]].edges))
-                        {
-                            inShape = true;
-                        }
-                    }
+                    inShape = TestInclusion(_zoneInformation2D[(int)vals[2]], g);
                 }
                 else
                 {
-                    if (_zoneInformation3D[(int)vals[2]].shape == Accepted3DZoneShapes.SPHERE)
-                    {
-                        if (TestSphereInclusion(g.transform.position, _zoneInformation3D[(int)vals[2]].ZoneCenter, _zoneInformation3D[(int)vals[2]].Radius))
-                        {
-                            inShape = true;
-                        }
-                    }
-
-                    if (_zoneInformation3D[(int)vals[2]].shape == Accepted3DZoneShapes.CUBE)
-                    {
-                        if (TestCubeInclusion(g.transform.position, _zoneInformation3D[(int)vals[2]].vertices,
-                            _zoneInformation3D[(int)vals[2]].edges))
-                        {
-                            inShape = true;
-                        }
-                    }
+                    inShape = TestInclusion(_zoneInformation3D[(int)vals[2]], g);
                 }
 
                 if (inShape)
@@ -413,6 +366,31 @@ public class GameObjectSim : MonoBehaviour
         }
     }
 
+    private bool TestInclusion<T>(ZoneInformation<T> zi, GameObject g)
+    {
+        if(zi.shape.Round())
+        {
+            return TestSphereInclusion(g.transform.position, zi.ZoneCenter, zi.Radius);
+        }
+        return TestCubeInclusion(g.transform.position, zi.vertices, zi.edges);
+        /*
+        if (_zoneInformation3D[(int)vals[2]].shape == Accepted3DZoneShapes.SPHERE)
+        {
+            if (TestSphereInclusion(g.transform.position, _zoneInformation3D[(int)vals[2]].ZoneCenter, _zoneInformation3D[(int)vals[2]].Radius))
+            {
+                inShape = true;
+            }
+        }
+
+        if (_zoneInformation3D[(int)vals[2]].shape == Accepted3DZoneShapes.CUBE)
+        {
+            if (TestCubeInclusion(g.transform.position, _zoneInformation3D[(int)vals[2]].vertices,
+                _zoneInformation3D[(int)vals[2]].edges))
+            {
+                inShape = true;
+            }
+        }*/
+    }
     private bool TestSphereInclusion(Vector3 position, Vector3 center, float radius)
     {
         return (Mathf.Pow(position.x - center.x, 2) + Mathf.Pow(position.y - center.y, 2) + Mathf.Pow(position.z - center.z, 2)) <= Mathf.Pow(radius, 2);
