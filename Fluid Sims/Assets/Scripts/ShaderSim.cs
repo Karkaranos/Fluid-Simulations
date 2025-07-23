@@ -212,9 +212,7 @@ public class SimulationManager : MonoBehaviour
 
     /// <summary>
     /// Initializes variables on the appropriate Shaders
-    /// TODO: Set bounds for 2D
-    /// 3D: Math derived from the post from Trey Reynolds at the below link
-    ///     https://math.stackexchange.com/questions/1472049/check-if-a-point-is-inside-a-rectangular-shaped-area-3d
+    /// TODO: Change to the math the GameObjectSim uses
     /// </summary>
     /// <param name="shader">The shader to initialize, either 2D or 3D</param>
     /// <param name="mesh">The mesh to initialize, either 2D or 3D</param>
