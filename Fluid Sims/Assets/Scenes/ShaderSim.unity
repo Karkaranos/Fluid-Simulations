@@ -646,7 +646,7 @@ MonoBehaviour:
   _initialVelocity2D: {x: 0, y: 0}
   _particleMesh3D: {fileID: 10207, guid: 0000000000000000e000000000000000, type: 0}
   _particleShader3D: {fileID: 4800000, guid: bebe529033c51cb4f99d667ea48fa0c7, type: 3}
-  _color: {r: 0, g: 0, b: 0, a: 0}
+  _color: {r: 1, g: 1, b: 1, a: 0.4392157}
   _initialVelocity3D: {x: 0, y: 0, z: 0}
   _iterationsPerFrame: 2
   _gravity: -6
@@ -663,7 +663,7 @@ MonoBehaviour:
   _simulationDimensions2D: {x: 20, y: 10}
   _zoneInformation2D:
     ZoneCenter: {x: 0, y: 0, z: 0}
-    isHighO2: 0
+    isMainColor1: 0
     vertices: []
     edges: []
     shape: 0
@@ -674,7 +674,7 @@ MonoBehaviour:
   _simulationDimensions3D: {x: 13, y: 6, z: 4}
   _zoneInformation3D:
     ZoneCenter: {x: 0, y: 0, z: 0}
-    isHighO2: 0
+    isMainColor1: 0
     vertices: []
     edges: []
     shape: 0
