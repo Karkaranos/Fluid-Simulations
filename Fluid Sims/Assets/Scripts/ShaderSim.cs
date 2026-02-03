@@ -604,6 +604,13 @@ public class SimulationManager : MonoBehaviour
             compute.SetFloat("SpikyPow3DerivativeScalingFactor", 30 / (Mathf.Pow(_smoothingRadius, 5) * Mathf.PI));
             compute.SetFloat("SpikyPow2DerivativeScalingFactor", 12 / (Mathf.Pow(_smoothingRadius, 4) * Mathf.PI));
         }
+        else
+        {
+            compute.SetVector("centre", Vector3.zero);
+
+            compute.SetMatrix("localToWorld", transform.localToWorldMatrix);
+            compute.SetMatrix("worldToLocal", transform.worldToLocalMatrix);
+        }
 
     }
 
